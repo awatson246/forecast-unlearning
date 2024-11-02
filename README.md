@@ -32,15 +32,15 @@ While there have been many developments in the field of unlearning, many limitat
 
 [4] K. Childs, D. Nolting, and A. Das, “Heat Marks the Spot: De-Anonymizing Users’ Geographical Data on the Strava Heatmap.”
 
-[5] “Moving Time, Speed, and Pace Calculations,” Oct. 2023. [Online]. Available: https://support.strava.com/hc/en-us/articles/115001188684-Moving-Time-Speed-and-Pace Calculations
+[5] “Moving Time, Speed, and Pace Calculations,” Oct. 2023. [Online]. Available: https://support.strava.com/hc/en-us/articles/115001188684-Moving-Time-Speed-and-Pace-Calculations
 
 [6] Y. Qu, X. Yuan, M. Ding, W. Ni, T. Rakotoarivelo, and D. Smith, “Learn to Unlearn: A Survey on Machine Unlearning,” Oct. 2023, arXiv:2305.07512 [cs]. [Online]. Available: http://arxiv.org/abs/2305.07512
 
 [7] S. Ye and J. Lu, “Sequence Unlearning for Sequential Recommender Systems,” in AI 2023: Advances in Artificial Intelligence, T. Liu, G. Webb, L. Yue, and D. Wang, Eds. Singapore: Springer Nature, 2024, pp. 403–415.
 
-[8] M. Du, Z. Chen, C. Liu, R. Oak, and D. Song, “Lifelong Anomaly Detection Through Unlearning,” in Proceedings of the 2019 ACM SIGSAC Conference on Computer and Communications Security, ser. CCS’19. New York, NY, USA: Association for Computing Machinery, Nov. 2019, pp. 1283–1297. [Online]. Available: \url[https://dl.acm.org/doi/10.1145/3319535.3363226]
+[8] M. Du, Z. Chen, C. Liu, R. Oak, and D. Song, “Lifelong Anomaly Detection Through Unlearning,” in Proceedings of the 2019 ACM SIGSAC Conference on Computer and Communications Security, ser. CCS’19. New York, NY, USA: Association for Computing Machinery, Nov. 2019, pp. 1283–1297. [Online]. Available: https://dl.acm.org/doi/10.1145/3319535.3363226
 
 [9] Jiamin Fan, “Machine Learning and Unlearning for IoT Anomaly Detection,” Dissertation, University of Victoria, 2023.
 
 [10] J. Xu, Z. Wu, C. Wang, and X. Jia, “Machine Unlearning: Solutions and Challenges,” IEEE
-Transactions on Emerging Topics in Computational Intelligence, vol. 8, no. 3, pp. 2150–2168, Jun. 2024, conference Name: IEEE Transactions on Emerging Topics in Computational Intelligence. [Online]. Available: \[https://ieeexplore.ieee.org/abstract/document/10488864]
+Transactions on Emerging Topics in Computational Intelligence, vol. 8, no. 3, pp. 2150–2168, Jun. 2024, conference Name: IEEE Transactions on Emerging Topics in Computational Intelligence. [Online]. Available: https://ieeexplore.ieee.org/abstract/document/10488864
