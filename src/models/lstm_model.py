@@ -11,19 +11,23 @@ def train_lstm(train, test, input_shape):
     trainX, trainY = train
     testX, testY = test
     
+    # Reshape trainX and testX for LSTM [samples, time steps, features]
+    trainX = trainX.reshape((trainX.shape[0], trainX.shape[1], trainX.shape[2]))
+    testX = testX.reshape((testX.shape[0], testX.shape[1], testX.shape[2]))
+    
     # Build the LSTM model
     model = Sequential([
-        LSTM(50, input_shape=input_shape),
-        Dense(1)
+        LSTM(50, input_shape=(trainX.shape[1], trainX.shape[2])),
+        Dense(1)  # Assuming you're predicting a single value
     ])
     model.compile(loss='mean_squared_error', optimizer='adam')
-    
+
     # Train the model
     model.fit(trainX, trainY, epochs=20, batch_size=1, verbose=2)
     
     # Make predictions
     test_predict = model.predict(testX)
-    
+
     # Calculate RMSE
     rmse = math.sqrt(root_mean_squared_error(testY, test_predict))
     

@@ -22,11 +22,7 @@ def main():
     train_data = df_processed[:train_size]
     test_data = df_processed[train_size:]
 
-    # # Create datasets
-    # train = create_dataset(train_data, settings['target_column'], look_back=3)
-    # test = create_dataset(test_data, settings['target_column'], look_back=3)
-
-        # Create datasets with look_back
+    # Create datasets with look_back
     train = create_dataset(train_data, settings['target_column'], look_back=3)
     test = create_dataset(test_data, settings['target_column'], look_back=3)
 
