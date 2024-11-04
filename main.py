@@ -3,10 +3,10 @@ from src.data_loading import load_data
 from src.data_preprocessing import preprocess_data, create_dataset
 from src.models.lstm_model import train_lstm
 from src.models.lightgbm_model import train_lightgbm
-from src.models.xgboost_model import train_xgboost
-from src.utils.evaluation import evaluate_model, permutation_importance, display_feature_importance
+from src.utils.evaluation import permutation_importance
 
 def main():
+    # Display menu and get user choices
     display_menu()
     dataset_choice = get_user_choice()
     df, settings = load_data(dataset_choice)
@@ -17,25 +17,29 @@ def main():
     # Preprocess data
     df_processed = preprocess_data(df, settings)
 
-    # Train test split
+    # Train-test split
     train_size = int(len(df_processed) * 0.8)
-    train_data = df_processed[:train_size]
-    test_data = df_processed[train_size:]
+    train_data, test_data = df_processed[:train_size], df_processed[train_size:]
 
-    # Create datasets with look_back
-    train = create_dataset(train_data, settings['target_column'], look_back=3)
-    test = create_dataset(test_data, settings['target_column'], look_back=3)
+    # Prepare datasets with a look-back window
+    look_back = 3
+    trainX, trainY = create_dataset(train_data, settings['target_column'], look_back)
+    testX, testY = create_dataset(test_data, settings['target_column'], look_back)
 
     if model_choice == '1':
         print("Training LSTM model...")
-        input_shape = train[0].shape[1:]
-        rmse, model, testX, testY = train_lstm(train, test, input_shape)
-        model_type = "lstm"  # Specify model type for permutation importance
+        input_shape = trainX.shape[1:]
+        rmse, model, _, _ = train_lstm((trainX, trainY), (testX, testY), input_shape)
+        model_type = "lstm"
     elif model_choice == '2':
         print("Training LightGBM model...")
-        rmse, model = train_lightgbm(train, test, settings['target_column'])
+        # Flatten the input for LightGBM (2D shape)
+        trainX_flat = trainX.reshape(trainX.shape[0], -1)
+        testX_flat = testX.reshape(testX.shape[0], -1)
+        rmse, model = train_lightgbm(trainX_flat, trainY, testX_flat, testY)
         model_type = "lightgbm"
-        testY = test[settings['target_column']].values  # Extract target for LightGBM
+    elif model_choice == '3':
+        print("Sorry! This feature isn't ready for the world yet...")
     else:
         print("Invalid choice. Please select a valid model.")
         return
@@ -43,17 +47,17 @@ def main():
     # Display RMSE
     print(f"Model RMSE: {rmse}")
 
-    # Evaluate location importance
-    location_columns = settings['location_columns']
-    feature_indices = [train.columns.get_loc(col) for col in location_columns if col in train.columns]
-    
-    # Get the model input format (3D for LSTM, 2D for LightGBM)
-    if model_type == "lstm":
-        X_test_model = testX  # Reshaped 3D array for LSTM
+    # Calculate location-based feature importance if available
+    location_columns = settings.get('location_columns', [])
+    feature_indices = [train_data.columns.get_loc(col) for col in location_columns if col in train_data.columns]
+
+    if feature_indices:
+        # Determine model input format for feature importance calculation
+        X_test_model = testX if model_type == "lstm" else testX_flat
+        location_importance = permutation_importance(model, X_test_model, testY, feature_indices, look_back, model_type)
+        print("Location-based feature importance calculated.")
     else:
-        X_test_model = test.drop(settings['target_column'], axis=1)  # 2D array for LightGBM
-    
-    location_importance = permutation_importance(model, X_test_model, testY, feature_indices, look_back=3, model_type=model_type)
+        print("No location columns specified for feature importance calculation.")
 
 if __name__ == "__main__":
     main()
