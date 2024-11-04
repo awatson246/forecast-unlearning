@@ -16,6 +16,14 @@ def chicago_data_pull():
     cwd = os.getcwd()
     dataset_path = os.path.join(cwd, 'Datasets', 'chicago_crimes.csv')
     df = pd.read_csv(dataset_path)
+
+    if 'year' in df.columns:
+        df['date'] = pd.to_datetime(df['year'].astype(str) + '-01-01') + \
+                     pd.to_timedelta(df.groupby('year').cumcount() % 365, unit='D')
+        df.drop(columns=['year'], inplace=True)
+
+    columns_to_drop = ['arrest_count', 'false_count', 'description']
+    df.drop(columns=[col for col in columns_to_drop if col in df.columns], inplace=True)
     
     settings = {
         'numeric_columns': ['district', 'latitude', 'longitude', 'crime_count'],
