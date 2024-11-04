@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import root_mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler
 import lightgbm as lgb
 
@@ -19,7 +19,7 @@ def evaluate_model(model, trainX, trainY, testX, testY):
     testY = scaler.inverse_transform(testY.reshape(-1, 1))
 
     # Calculate and display RMSE and R² scores
-    rmse = np.sqrt(mean_squared_error(testY, testPredict))
+    rmse = np.sqrt(root_mean_squared_error(testY, testPredict))
     r2 = r2_score(testY, testPredict)
     print(f"Model RMSE: {rmse:.4f}")
     print(f"Model R²: {r2:.4f}")
@@ -52,7 +52,7 @@ def permutation_importance(model, X, y, feature_indices, look_back, model_type):
         y_pred = model.predict(X_permuted.reshape(X.shape[0], look_back, -1) if model_type == "lstm" else X_permuted)
         
         # Calculate RMSE and store the drop in accuracy
-        rmse_permuted = np.sqrt(mean_squared_error(y, y_pred))
+        rmse_permuted = np.sqrt(root_mean_squared_error(y, y_pred))
         feature_importance[idx] = rmse_permuted
 
         # Restore original feature values
