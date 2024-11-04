@@ -21,28 +21,45 @@ def preprocess_data(df, settings):
 
     return df
 
+# def create_dataset(df, target_column, look_back=1):
+#     data = df.values
+#     target = df[target_column].values
+#     dataX, dataY = [], []
+
+#     for i in range(len(data) - look_back):
+#         dataX.append(data[i:(i + look_back)].flatten())  # Flatten the 3D data into 1D
+#         dataY.append(target[i + look_back])
+    
+#     # Convert lists to numpy arrays
+#     dataX = np.array(dataX)
+#     dataY = np.array(dataY)
+
+#     # Create a DataFrame for X with the appropriate number of features
+#     num_features = data.shape[1]  # Total number of features
+#     columns = [f'feature_{i}' for i in range(look_back * num_features)]  # Update columns to reflect the flattened features
+#     df_X = pd.DataFrame(dataX, columns=columns)
+
+#     # Create a DataFrame for Y
+#     df_Y = pd.DataFrame(dataY, columns=[target_column])
+
+#     # Concatenate X and Y DataFrames
+#     df_result = pd.concat([df_X, df_Y], axis=1)
+
+#     return df_result
+
 def create_dataset(df, target_column, look_back=1):
-    data = df.values
-    target = df[target_column].values
+    """Convert a DataFrame into sequences with look_back steps for LSTM input."""
+    data = df.drop(columns=[target_column]).values  # Exclude the target column for features
+    target = df[target_column].values               # Only target values for dataY
     dataX, dataY = [], []
 
+    # Create sequences of look_back steps
     for i in range(len(data) - look_back):
-        dataX.append(data[i:(i + look_back)].flatten())  # Flatten the 3D data into 1D
+        dataX.append(data[i:(i + look_back), :])  # Keep as 2D for LSTM
         dataY.append(target[i + look_back])
     
     # Convert lists to numpy arrays
     dataX = np.array(dataX)
     dataY = np.array(dataY)
 
-    # Create a DataFrame for X with the appropriate number of features
-    num_features = data.shape[1]  # Total number of features
-    columns = [f'feature_{i}' for i in range(look_back * num_features)]  # Update columns to reflect the flattened features
-    df_X = pd.DataFrame(dataX, columns=columns)
-
-    # Create a DataFrame for Y
-    df_Y = pd.DataFrame(dataY, columns=[target_column])
-
-    # Concatenate X and Y DataFrames
-    df_result = pd.concat([df_X, df_Y], axis=1)
-
-    return df_result
+    return dataX, dataY

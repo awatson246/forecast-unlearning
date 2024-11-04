@@ -22,13 +22,18 @@ def main():
     train_data = df_processed[:train_size]
     test_data = df_processed[train_size:]
 
-    # Create datasets
+    # # Create datasets
+    # train = create_dataset(train_data, settings['target_column'], look_back=3)
+    # test = create_dataset(test_data, settings['target_column'], look_back=3)
+
+        # Create datasets with look_back
     train = create_dataset(train_data, settings['target_column'], look_back=3)
     test = create_dataset(test_data, settings['target_column'], look_back=3)
 
     if model_choice == '1':
         print("Training LSTM model...")
-        rmse, model, testX, testY = train_lstm(train, test, settings['target_column'], look_back=3)
+        input_shape = train[0].shape[1:]
+        rmse, model, testX, testY = train_lstm(train, test, input_shape)
         model_type = "lstm"  # Specify model type for permutation importance
     elif model_choice == '2':
         print("Training LightGBM model...")
