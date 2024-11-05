@@ -4,6 +4,10 @@ from src.data_preprocessing import DataPreprocessor
 from src.models.lstm_model import train_lstm
 from src.models.lightgbm_model import train_lightgbm
 from src.utils.evaluation import permutation_importance
+from src.utils.loading_animation import loading_animation
+
+import time
+import threading
 
 def main():
     # Display menu and get user choices
@@ -31,11 +35,21 @@ def main():
 
     if model_choice == '1':
         print("Training LSTM model...")
+        # Start bunny animation in a separate thread
+        bunny_thread = threading.Thread(target=loading_animation)
+        bunny_thread.daemon = True  # This ensures the thread ends when the main program ends
+        bunny_thread.start()
+
         input_shape = trainX.shape[1:]
         rmse, model, _, _ = train_lstm((trainX, trainY), (testX, testY), input_shape)
         model_type = "lstm"
     elif model_choice == '2':
         print("Training LightGBM model...")
+        # Start bunny animation in a separate thread
+        bunny_thread = threading.Thread(target=loading_animation)
+        bunny_thread.daemon = True  # This ensures the thread ends when the main program ends
+        bunny_thread.start()
+        
         # Flatten the input for LightGBM (2D shape)
         trainX_flat = trainX.reshape(trainX.shape[0], -1)
         testX_flat = testX.reshape(testX.shape[0], -1)
@@ -53,7 +67,7 @@ def main():
     # Get feature importance and identify the most important feature for unlearning
     sorted_importance, most_important_feature = permutation_importance(
         model, 
-        testX_flat, 
+        testX, 
         testY, 
         train_data.columns,
         look_back, 

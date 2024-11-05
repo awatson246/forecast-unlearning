@@ -7,7 +7,7 @@ def train_lightgbm(trainX, trainY, testX, testY):
     """Trains a LightGBM model and calculates RMSE on test data, with hyperparameter tuning."""
     
     # Set up LightGBM regressor with default parameters
-    model = lgb.LGBMRegressor()
+    model = lgb.LGBMRegressor(verbose=-1)
 
     # Define hyperparameters for tuning
     param_grid = {
