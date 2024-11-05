@@ -1,6 +1,6 @@
 from src.utils.menu import display_menu, get_user_choice, display_model_menu, get_model_choice
 from src.data_loading import load_data
-from src.data_preprocessing import preprocess_data, create_dataset
+from src.data_preprocessing import DataPreprocessor
 from src.models.lstm_model import train_lstm
 from src.models.lightgbm_model import train_lightgbm
 from src.utils.evaluation import permutation_importance
@@ -14,17 +14,20 @@ def main():
     display_model_menu()
     model_choice = get_model_choice()
 
+    # Initialize the preprocessor
+    preprocessor = DataPreprocessor(settings)
+
     # Preprocess data
-    df_processed = preprocess_data(df, settings)
+    df_processed = preprocessor.preprocess_data(df)
 
     # Train-test split
     train_size = int(len(df_processed) * 0.8)
     train_data, test_data = df_processed[:train_size], df_processed[train_size:]
 
     # Prepare datasets with a look-back window
-    look_back = 3
-    trainX, trainY = create_dataset(train_data, settings['target_column'], look_back)
-    testX, testY = create_dataset(test_data, settings['target_column'], look_back)
+    look_back = 10
+    trainX, trainY = preprocessor.create_dataset(train_data, settings['target_column'], look_back)
+    testX, testY = preprocessor.create_dataset(test_data, settings['target_column'], look_back)
 
     if model_choice == '1':
         print("Training LSTM model...")
