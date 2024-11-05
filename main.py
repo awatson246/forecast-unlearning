@@ -47,17 +47,16 @@ def main():
     # Display RMSE
     print(f"Model RMSE: {rmse}")
 
-    # Calculate location-based feature importance if available
-    location_columns = settings.get('location_columns', [])
-    feature_indices = [train_data.columns.get_loc(col) for col in location_columns if col in train_data.columns]
+    # Get feature importance and identify the most important feature for unlearning
+    sorted_importance, most_important_feature = permutation_importance(
+        model, 
+        testX_flat, 
+        testY, 
+        train_data.columns,
+        look_back, 
+        model_type
+    )
 
-    if feature_indices:
-        # Determine model input format for feature importance calculation
-        X_test_model = testX if model_type == "lstm" else testX_flat
-        location_importance = permutation_importance(model, X_test_model, testY, feature_indices, look_back, model_type)
-        print("Location-based feature importance calculated.")
-    else:
-        print("No location columns specified for feature importance calculation.")
 
 if __name__ == "__main__":
     main()

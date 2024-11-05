@@ -36,14 +36,14 @@ def evaluate_model(model, trainX, trainY, testX, testY):
     plt.legend()
     plt.show()
 
-def permutation_importance(model, X, y, feature_indices, look_back, model_type):
-    """Calculates and returns the permutation importance of specified features."""
+def permutation_importance(model, X, y, feature_names, look_back, model_type):
+    """Calculates, ranks, and returns the permutation importance of all features."""
     
     # Ensure X is a NumPy array
     X_permuted = X.copy() if isinstance(X, np.ndarray) else X.values
     feature_importance = {}
 
-    for idx in feature_indices:
+    for idx, feature_name in enumerate(feature_names):
         # Permute feature values
         original_values = X_permuted[:, idx].copy()
         np.random.shuffle(X_permuted[:, idx])
@@ -53,26 +53,21 @@ def permutation_importance(model, X, y, feature_indices, look_back, model_type):
         
         # Calculate RMSE and store the drop in accuracy
         rmse_permuted = np.sqrt(root_mean_squared_error(y, y_pred))
-        feature_importance[idx] = rmse_permuted
+        feature_importance[feature_name] = rmse_permuted
 
         # Restore original feature values
         X_permuted[:, idx] = original_values
 
-    # Print permutation importance results
-    print("\nPermutation Importance for Selected Features:")
-    for idx, score in feature_importance.items():
-        print(f"Feature {idx}: RMSE with Permutation = {score:.4f}")
+    # Sort the features by their importance (higher RMSE means higher importance)
+    sorted_importance = sorted(feature_importance.items(), key=lambda item: item[1], reverse=True)
 
-    return feature_importance
+    # Print sorted permutation importance results
+    print("\nPermutation Importance for All Features:")
+    for feature_name, score in sorted_importance:
+        print(f"{feature_name}: RMSE with Permutation = {score:.4f}")
 
-def display_feature_importance(model, feature_names):
-    """Displays feature importance from the LightGBM model based on gain and plots the top features."""
-    
-    importance = model.feature_importance(importance_type='gain')
-    print("\nFeature Importances:")
-    for name, score in zip(feature_names, importance):
-        print(f"{name}: {score}")
+    # Save the most important feature for unlearning
+    most_important_feature = sorted_importance[0][0]
+    print(f"\nMost important feature for unlearning: {most_important_feature}")
 
-    # Optional: Plot feature importance
-    lgb.plot_importance(model, max_num_features=10, importance_type='gain', title='Top Feature Importances')
-    plt.show()
+    return sorted_importance, most_important_feature
