@@ -63,9 +63,9 @@ class DataPreprocessor:
         
         # Ensure all data is numeric and drop the target column for features
         df_numeric = df.drop(columns=[target_column]).select_dtypes(include=[np.number])
-        
-        if df_numeric.isnull().values.any():
-            raise ValueError("Data contains NaN values, which cannot be processed.")
+
+        # Handle NaN values by filling with the mean of the column (or other strategies)
+        df_numeric = df_numeric.fillna(df_numeric.mean())  # Fill NaNs with the column mean
 
         # Prepare the target array
         target = df[target_column].values  # Only target values for dataY

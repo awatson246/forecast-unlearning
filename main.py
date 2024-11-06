@@ -33,22 +33,24 @@ def main():
     trainX, trainY = preprocessor.create_dataset(train_data, settings['target_column'], look_back)
     testX, testY = preprocessor.create_dataset(test_data, settings['target_column'], look_back)
 
+    bun = input("^^? (y/n)")
     if model_choice == '1':
         print("Training LSTM model...")
-        # Start bunny animation in a separate thread
-        bunny_thread = threading.Thread(target=loading_animation)
-        bunny_thread.daemon = True  # This ensures the thread ends when the main program ends
-        bunny_thread.start()
-
+        if bun == 'y': 
+            # Start bunny animation in a separate thread
+            bunny_thread = threading.Thread(target=loading_animation)
+            bunny_thread.daemon = True 
+            bunny_thread.start()
+            
         input_shape = trainX.shape[1:]
         rmse, model, _, _ = train_lstm((trainX, trainY), (testX, testY), input_shape)
         model_type = "lstm"
     elif model_choice == '2':
         print("Training LightGBM model...")
-        # Start bunny animation in a separate thread
-        bunny_thread = threading.Thread(target=loading_animation)
-        bunny_thread.daemon = True  # This ensures the thread ends when the main program ends
-        bunny_thread.start()
+        if bun == 'y': 
+            # Start bunny animation in a separate thread
+            bunny_thread = threading.Thread(target=loading_animation)
+            bunny_thread.start()
         
         # Flatten the input for LightGBM (2D shape)
         trainX_flat = trainX.reshape(trainX.shape[0], -1)

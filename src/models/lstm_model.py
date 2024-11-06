@@ -18,7 +18,7 @@ def train_lstm(train, test, input_shape, look_back=1):
     model.compile(loss='mean_squared_error', optimizer='adam')
 
     # Train the model
-    model.fit(trainX, trainY, epochs=25, batch_size=1, verbose=2)
+    model.fit(trainX, trainY, epochs=5, batch_size=1, verbose=2)
     
     # Make predictions
     test_predict = model.predict(testX)
