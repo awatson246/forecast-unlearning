@@ -43,7 +43,14 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
     X_permuted = X.copy() if isinstance(X, np.ndarray) else X.values
     feature_importance = {}
 
+    # Check if number of features matches the number of feature names
+    if len(feature_names) != X_permuted.shape[1]:
+        print(f"Warning: Mismatch between number of features ({X_permuted.shape[1]}) and feature_names length ({len(feature_names)})")
+        feature_names = feature_names[:X_permuted.shape[1]]  # Adjust to match the data
+    
     for idx, feature_name in enumerate(feature_names):
+        if idx >= X_permuted.shape[1]:  # Skip if index is out of bounds
+            break
         if feature_name == "index":
             continue
 
@@ -52,11 +59,8 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
         np.random.shuffle(X_permuted[:, idx])
 
         # Make predictions with the permuted feature
-        if model_type == "lstm":
-            y_pred = model.predict(X_permuted.reshape(X.shape[0], look_back, -1))  # Reshape only for LSTM
-        else:  # LightGBM expects 2D input
-            y_pred = model.predict(X_permuted)  # No reshaping for LightGBM
-
+        y_pred = model.predict(X_permuted.reshape(X.shape[0], look_back, -1) if model_type == "lstm" else X_permuted)
+        
         # Calculate RMSE and store the drop in accuracy
         rmse_permuted = np.sqrt(root_mean_squared_error(y, y_pred))
         feature_importance[feature_name] = rmse_permuted
