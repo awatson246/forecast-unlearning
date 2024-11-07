@@ -4,16 +4,18 @@ import time
 def loading_animation():
     bunny0 = [
         "       ",
-        "        ^ ^",
+        "       ",
+        "       () ()",
         "      ( *.*)",
-        "     o( u u)"
+        "     o( u u)             Model Training.."
     ]
 
     bunny1 = [
-        "        ^ ^",
+        "       ",
+        "       () ()",
         "      ( *.*)",
         "     o( u u)",
-        "       "
+        "                         Model Training..."
     ]
 
     hop = True
@@ -31,11 +33,13 @@ def loading_animation():
             print(bunny0[1])
             print(bunny0[2])
             print(bunny0[3])
-        elif not(hop):
+            print(bunny0[4])
+        elif not hop:
             print(bunny1[0])
             print(bunny1[1])
             print(bunny1[2])
             print(bunny1[3])
+            print(bunny1[4])
         
         # Create an effect of infinite ground by shifting
         # The ground moves below the bunny
@@ -44,7 +48,7 @@ def loading_animation():
         # Move the ground "left" (by incrementing num_spaces)
         num_spaces += 1
 
-        # Flip hope to bounce
+        # Change hop to bounce (direction = True if going up, False if going down)
         hop = not(hop)
         
         # Sleep to slow down the animation
