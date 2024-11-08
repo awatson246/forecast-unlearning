@@ -12,3 +12,12 @@ def display_model_menu():
 
 def get_model_choice():
     return input("Enter the number of your choice: ")
+
+def display_unlearning_menu():
+    print("Choose an unlearning model:") 
+    print("1. Feature Masking")
+    print("2. Layer Freezing")
+    print("3. Knowledge Distillation")
+
+def get_unlearning_choice():
+    return input("Enter the number of your choice: ")

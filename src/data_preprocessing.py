@@ -12,6 +12,8 @@ class DataPreprocessor:
         """Preprocess the input DataFrame by converting datetime, normalizing numeric columns, 
            and encoding categorical columns."""
         
+        print("Preprocessing data...")
+        
         # Convert datetime column and extract features
         df[self.settings['datetime_column']] = pd.to_datetime(
             df[self.settings['datetime_column']], 
@@ -60,6 +62,8 @@ class DataPreprocessor:
 
     def create_dataset(self, df, target_column, look_back=1):
         """Convert a DataFrame into sequences with look_back steps for LSTM input."""
+        
+        print("Creating dataset...")
         
         # Ensure all data is numeric and drop the target column for features
         df_numeric = df.drop(columns=[target_column]).select_dtypes(include=[np.number])
