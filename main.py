@@ -91,6 +91,13 @@ def main():
         # Print the shape immediately after calling apply_feature_masking
         print(f"Shape of unlearned_X after feature masking: {unlearned_X.shape}")
 
+        if model_type == "lightgbm":
+            # Reshape unlearned_X to 2D for LightGBM
+            unlearned_X = unlearned_X.reshape(unlearned_X.shape[0], -1)
+        elif model_type == "lstm":
+            # Keep unlearned_X in 3D for LSTM
+            pass
+
         # Run prediction on the masked data
         y_pred_unlearned = model.predict(unlearned_X)
 

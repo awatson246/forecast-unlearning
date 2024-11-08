@@ -38,35 +38,50 @@ def evaluate_model(model, trainX, trainY, testX, testY):
 
 def permutation_importance(model, X, y, feature_names, look_back, model_type):
     """Calculates, ranks, and returns the permutation importance of all features."""
-    
+
     # Ensure X is a NumPy array
     X_permuted = X.copy() if isinstance(X, np.ndarray) else X.values
     feature_importance = {}
 
     # Check if number of features matches the number of feature names
-    if len(feature_names) != X_permuted.shape[1]:
-        print(f"Warning: Mismatch between number of features ({X_permuted.shape[1]}) and feature_names length ({len(feature_names)})")
-        feature_names = feature_names[:X_permuted.shape[1]]  # Adjust to match the data
-    
+    if len(feature_names) != (X_permuted.shape[2] if model_type == "lstm" else X_permuted.shape[1]):
+        print(f"Warning: Mismatch between number of features and feature_names length.")
+        feature_names = feature_names[:(X_permuted.shape[2] if model_type == "lstm" else X_permuted.shape[1])]
+
     for idx, feature_name in enumerate(feature_names):
-        if idx >= X_permuted.shape[1]:  # Skip if index is out of bounds
+        # For LSTM, X_permuted has 3D shape; for LightGBM, it has 2D shape
+        if model_type == "lstm" and idx >= X_permuted.shape[2]:
+            break
+        elif model_type != "lstm" and idx >= X_permuted.shape[1]:
             break
         if feature_name == "index":
             continue
 
         # Permute feature values
-        original_values = X_permuted[:, idx].copy()
-        np.random.shuffle(X_permuted[:, idx])
+        if model_type == "lstm":
+            original_values = X_permuted[:, :, idx].copy()
+            np.random.shuffle(X_permuted[:, :, idx])
+        else:
+            original_values = X_permuted[:, idx].copy()
+            np.random.shuffle(X_permuted[:, idx])
 
-        # Make predictions with the permuted feature
-        y_pred = model.predict(X_permuted.reshape(X.shape[0], look_back, -1) if model_type == "lstm" else X_permuted)
-        
+        # Reshape for prediction based on model type
+        if model_type == "lstm":
+            # Reshape for LSTM's expected 3D input
+            y_pred = model.predict(X_permuted.reshape(X.shape[0], look_back, -1))
+        else:
+            # Flatten 3D to 2D for LightGBM
+            y_pred = model.predict(X_permuted.reshape(X.shape[0], -1))
+
         # Calculate RMSE and store the drop in accuracy
-        rmse_permuted = np.sqrt(root_mean_squared_error(y, y_pred))
+        rmse_permuted = np.sqrt(np.mean((y - y_pred) ** 2))  # Replace with actual RMSE function if available
         feature_importance[feature_name] = rmse_permuted
 
         # Restore original feature values
-        X_permuted[:, idx] = original_values
+        if model_type == "lstm":
+            X_permuted[:, :, idx] = original_values
+        else:
+            X_permuted[:, idx] = original_values
 
     # Sort the features by their importance (higher RMSE means higher importance)
     sorted_importance = sorted(feature_importance.items(), key=lambda item: item[1], reverse=True)
@@ -83,12 +98,25 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
     return sorted_importance, most_important_feature
 
 def evaluate_unlearning(model, X, y, unlearned_X, model_type):
-    # Initial RMSE with original data
-    y_pred = model.predict(X) if model_type == "lstm" else model.predict(X)
-    initial_rmse = np.sqrt(root_mean_squared_error(y, y_pred))
+    """Evaluates the unlearning process and computes RMSE."""
+    
+    # Evaluate initial RMSE
+    if model_type == "lightgbm":
+        X = X.reshape(X.shape[0], -1)  # Reshape for LightGBM (2D)
+    elif model_type == "lstm":
+        pass  # Keep X in 3D for LSTM
 
-    # RMSE after unlearning the feature
-    y_pred_unlearned = model.predict(unlearned_X) if model_type == "lstm" else model.predict(unlearned_X)
-    unlearned_rmse = np.sqrt(root_mean_squared_error(y, y_pred_unlearned))
+    y_pred_initial = model.predict(X)
+    initial_rmse = np.sqrt(np.mean((y - y_pred_initial) ** 2))
+    
+    # Reshape unlearned_X for LightGBM (2D) and LSTM (3D)
+    if model_type == "lightgbm":
+        unlearned_X = unlearned_X.reshape(unlearned_X.shape[0], -1)  # Flatten to 2D for LightGBM
+    elif model_type == "lstm":
+        pass  # Keep unlearned_X in 3D for LSTM
+    
+    # Predict with unlearned data
+    y_pred_unlearned = model.predict(unlearned_X)
+    unlearned_rmse = np.sqrt(np.mean((y - y_pred_unlearned) ** 2))
 
     return initial_rmse, unlearned_rmse
