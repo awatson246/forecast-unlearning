@@ -87,13 +87,16 @@ def main():
     if unlearning_choice == '1':
         # Feature masking: apply to data and keep the original model
         unlearned_X = feature_masking.apply_feature_masking(model, testX, feature_index)
-        
-        # Ensure unlearned_X has the correct shape for prediction
-        if model_type == "lstm":
-            unlearned_X = unlearned_X.reshape(testX.shape[0], look_back, -1)  # Reshape to match LSTM input shape
-        
-        y_pred_unlearned = model.predict(unlearned_X)  # Use original model to predict on unlearned data
+
+        # Print the shape immediately after calling apply_feature_masking
+        print(f"Shape of unlearned_X after feature masking: {unlearned_X.shape}")
+
+        # Run prediction on the masked data
+        y_pred_unlearned = model.predict(unlearned_X)
+
+        # Evaluate unlearning by calculating RMSE for original vs. unlearned predictions
         initial_rmse, unlearned_rmse = evaluate_unlearning(model, testX, testY, unlearned_X, model_type)
+
 
     elif unlearning_choice == '2':
         # Layer Freezing: Here you may not need feature_index, so we pass only the model and X
@@ -113,6 +116,7 @@ def main():
 
     print(f"Full model RMSE: {initial_rmse}")
     print(f"Unlearning model RMSE: {unlearned_rmse}")
+    print("No errors this time!")
 
 
 if __name__ == "__main__":
