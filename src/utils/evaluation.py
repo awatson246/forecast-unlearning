@@ -81,3 +81,14 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
     print(f"\nMost important feature for unlearning: {most_important_feature}")
 
     return sorted_importance, most_important_feature
+
+def evaluate_unlearning(model, X, y, unlearned_X, model_type):
+    # Initial RMSE with original data
+    y_pred = model.predict(X) if model_type == "lstm" else model.predict(X)
+    initial_rmse = np.sqrt(root_mean_squared_error(y, y_pred))
+
+    # RMSE after unlearning the feature
+    y_pred_unlearned = model.predict(unlearned_X) if model_type == "lstm" else model.predict(unlearned_X)
+    unlearned_rmse = np.sqrt(root_mean_squared_error(y, y_pred_unlearned))
+
+    return initial_rmse, unlearned_rmse
