@@ -1,3 +1,4 @@
+import pandas as pd
 from src.utils.menu import display_menu, get_user_choice, display_model_menu, get_model_choice, display_unlearning_menu, get_unlearning_choice
 from src.data_loading import load_data
 from src.data_preprocessing import DataPreprocessor
@@ -6,7 +7,6 @@ from src.models.lightgbm_model import train_lightgbm
 from src.utils.evaluation import permutation_importance, evaluate_unlearning
 from src.utils.loading_animation import loading_animation
 from src.models.unlearning import feature_masking, layer_freezing, knowledge_distillation
-
 import threading
 
 def main():
@@ -34,6 +34,7 @@ def main():
     testX, testY = preprocessor.create_dataset(test_data, settings['target_column'], look_back)
 
     bun = input("()()...? (y/n)")
+
     if model_choice == '1':
         print("Training LSTM model...")
         if bun == 'y': 
@@ -66,14 +67,13 @@ def main():
     # Display RMSE
     print(f"Model RMSE: {rmse}")
 
-    # Get feature importance and identify the most important feature for unlearning
     sorted_importance, most_important_feature = permutation_importance(
-        model, 
-        testX, 
-        testY, 
-        train_data.columns,
-        look_back, 
-        model_type
+        model,
+        testX,  # Now it's a 2D DataFrame with the correct shape and column names
+        testY,
+        df.columns,
+        look_back=3, 
+        model_type=model_type
     )
 
     # Select and set the unlearning model

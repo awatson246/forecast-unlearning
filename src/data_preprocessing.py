@@ -10,10 +10,10 @@ class DataPreprocessor:
     
     def preprocess_data(self, df):
         """Preprocess the input DataFrame by converting datetime, normalizing numeric columns, 
-           and encoding categorical columns."""
-        
+        and encoding categorical columns."""
+
         print("Preprocessing data...")
-        
+
         # Convert datetime column and extract features
         df[self.settings['datetime_column']] = pd.to_datetime(
             df[self.settings['datetime_column']], 
@@ -24,17 +24,18 @@ class DataPreprocessor:
         df['year'] = df[self.settings['datetime_column']].dt.year
         df['month'] = df[self.settings['datetime_column']].dt.month
         df['day'] = df[self.settings['datetime_column']].dt.day
-        
+
         # Drop the original datetime column
         df = df.drop(columns=[self.settings['datetime_column']])
 
         # Normalize numeric columns
         df = self.normalize_numeric_columns(df, self.settings['numeric_columns'])
-        
+
         # Encode categorical columns
         df = self.encode_categorical_columns(df, self.settings['categorical_columns'])
 
         return df
+
 
     def normalize_numeric_columns(self, df, numeric_columns):
         """Normalize numeric columns using MinMaxScaler."""
@@ -64,7 +65,7 @@ class DataPreprocessor:
         """Convert a DataFrame into sequences with look_back steps for LSTM input."""
         
         print("Creating dataset...")
-        
+
         # Ensure all data is numeric and drop the target column for features
         df_numeric = df.drop(columns=[target_column]).select_dtypes(include=[np.number])
 
@@ -73,16 +74,24 @@ class DataPreprocessor:
 
         # Prepare the target array
         target = df[target_column].values  # Only target values for dataY
-        
+
+        # Drop rows where the target column has NaNs
+        if np.isnan(target).sum() > 0:
+            print(f"Dropping {np.isnan(target).sum()} rows with NaNs in target column...")
+            df = df.dropna(subset=[target_column])  # Drop rows where the target column has NaNs
+            df_numeric = df.drop(columns=[target_column]).select_dtypes(include=[np.number])  # Re-align df_numeric
+            target = df[target_column].values  # Re-assign the cleaned target
+
         dataX, dataY = [], []
 
-        # Create sequences of look_back steps
+        # Adjust loop to ensure we don't exceed the bounds of the target array
         for i in range(len(df_numeric) - look_back):
             dataX.append(df_numeric.iloc[i:(i + look_back)].values)  # Keep as 2D for LSTM
             dataY.append(target[i + look_back])
-        
+
         # Convert lists to numpy arrays
         dataX = np.array(dataX)
         dataY = np.array(dataY)
 
         return dataX, dataY
+
