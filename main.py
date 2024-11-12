@@ -4,10 +4,13 @@ from src.data_loading import load_data
 from src.data_preprocessing import DataPreprocessor
 from src.models.lstm_model import train_lstm
 from src.models.lightgbm_model import train_lightgbm
+from src.models.xgboost_model import train_xgboost
 from src.utils.evaluation import permutation_importance, evaluate_unlearning
 from src.utils.loading_animation import loading_animation
 from src.models.unlearning import feature_masking, layer_freezing, knowledge_distillation
 import threading
+import xgboost as xgb
+
 
 def main():
     # Display menu and get user choices
@@ -59,7 +62,12 @@ def main():
         rmse, model = train_lightgbm(trainX_flat, trainY, testX_flat, testY)
         model_type = "lightgbm"
     elif model_choice == '3':
-        print("Sorry! This feature isn't ready for the world yet...")
+        # Flatten the input for LightGBM (2D shape)
+        trainX_flat = trainX.reshape(trainX.shape[0], -1)
+        testX_flat = testX.reshape(testX.shape[0], -1)
+        print("Training XGboost model...")
+        rmse, model = train_xgboost((trainX_flat, trainY), (testX_flat, testY))
+        model_type = "xgboost"
     else:
         print("Invalid choice. Please select a valid model.")
         return
@@ -91,9 +99,11 @@ def main():
         # Print the shape immediately after calling apply_feature_masking
         print(f"Shape of unlearned_X after feature masking: {unlearned_X.shape}")
 
-        if model_type == "lightgbm":
+        if model_type == "lightgbm" or "xgboost":
             # Reshape unlearned_X to 2D for LightGBM
             unlearned_X = unlearned_X.reshape(unlearned_X.shape[0], -1)
+            if model_type == "xgboost":
+                unlearned_X = xgb.DMatrix(data=unlearned_X)
         elif model_type == "lstm":
             # Keep unlearned_X in 3D for LSTM
             pass

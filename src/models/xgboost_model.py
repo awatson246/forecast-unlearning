@@ -3,17 +3,15 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import root_mean_squared_error
 
-def train_xgboost(train, test, target_column):
+def train_xgboost(train, test):
     """ Train an XGBoost model and evaluate RMSE on the test set.    """
-    # Separate features and target
-    X_train = train.drop(columns=[target_column])
-    y_train = train[target_column]
-    X_test = test.drop(columns=[target_column])
-    y_test = test[target_column]
+
+    trainX, trainY = train
+    testX, testY = test
     
     # Convert data to DMatrix format (required by XGBoost)
-    train_data = xgb.DMatrix(X_train, label=y_train)
-    test_data = xgb.DMatrix(X_test, label=y_test)
+    train_data = xgb.DMatrix(trainX, label=trainY)
+    test_data = xgb.DMatrix(testX, label=testY)
 
     # Set XGBoost parameters
     params = {
@@ -27,7 +25,7 @@ def train_xgboost(train, test, target_column):
 
     # Predict and calculate RMSE on test set
     y_pred = model.predict(test_data)
-    rmse = np.sqrt(root_mean_squared_error(y_test, y_pred))
+    rmse = np.sqrt(root_mean_squared_error(testY, y_pred))
     print(f"XGBoost Model RMSE: {rmse}")
 
-    return model
+    return rmse, model

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import root_mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler
 import lightgbm as lgb
+import xgboost as xgb
 
 def evaluate_model(model, trainX, trainY, testX, testY):
     """Evaluates the model, prints metrics, and plots actual vs. predicted values."""
@@ -64,10 +65,13 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
                 X_permuted = X.copy().values 
             else: 
                 X_permuted = np.copy(X)
+
             np.random.shuffle(X_permuted[:, idx])
             X_input = X_permuted.reshape(X_permuted.shape[0], -1)
-        
 
+            if model_type == "xgboost":
+                X_input = xgb.DMatrix(data=X_input)
+        
         # Now make the prediction using the appropriate data type
         y_pred_permuted = model.predict(X_input)
 
@@ -97,12 +101,14 @@ def evaluate_unlearning(model, X, y, unlearned_X, model_type):
     """Evaluates the unlearning process and computes RMSE."""
 
     # Evaluate initial RMSE
-    if model_type == "lightgbm":
+    if model_type == "lightgbm" or "xgboost":
         X = X.reshape(X.shape[0], -1)  # Reshape for LightGBM (2D)
+        if model_type == "xgboost":
+            X = xgb.DMatrix(data=X)
     elif model_type == "lstm":
         pass  # Keep X in 3D for LSTM
 
-    print(f"Shape of X: {X.shape}")
+    #print(f"Shape of X: {X.shape}")
 
     y_pred_initial = model.predict(X)
     initial_rmse = np.sqrt(np.mean((y - y_pred_initial) ** 2))
