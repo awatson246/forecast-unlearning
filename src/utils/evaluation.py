@@ -45,21 +45,31 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
     feature_importance = {}
 
     for idx, feature_name in enumerate(feature_names):
-        if feature_name in ("index", "year", "month", "day"):
+        if feature_name in ("index", "year", "month", "day", "Row ID"):
             continue
         
-        original_values = X_permuted[:, idx].copy()
+        # Make sure we don't over-index
+        if idx < X_permuted.shape[1]:
+            original_values = X_permuted[:, idx].copy()
+        else:
+            continue
 
         if model_type == "lstm":
             X_permuted = X.copy()
             for t in range(look_back):
                 np.random.shuffle(X_permuted[:, t, idx])  # Shuffle across all time steps
+            X_input = X_permuted
         else:  # For LightGBM or any 2D-input model
-            X_permuted = X.copy().values  # Convert to NumPy array
+            if isinstance(X, pd.DataFrame): 
+                X_permuted = X.copy().values 
+            else: 
+                X_permuted = np.copy(X)
             np.random.shuffle(X_permuted[:, idx])
+            X_input = X_permuted.reshape(X_permuted.shape[0], -1)
+        
 
-        # Calculate error with permuted data
-        y_pred_permuted = model.predict(X_permuted)
+        # Now make the prediction using the appropriate data type
+        y_pred_permuted = model.predict(X_input)
 
         # Calculate RMSE and store the drop in accuracy
         rmse_permuted = np.sqrt(root_mean_squared_error(y, y_pred_permuted))

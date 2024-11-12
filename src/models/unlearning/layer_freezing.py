@@ -1,5 +1,5 @@
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Dense
 
 def apply_layer_freezing(model, num_layers_to_freeze, X, y, epochs=5):
     """Freeze specific layers in the model and fine-tune on the remaining data."""

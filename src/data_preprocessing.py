@@ -77,7 +77,6 @@ class DataPreprocessor:
 
         # Drop rows where the target column has NaNs
         if np.isnan(target).sum() > 0:
-            print(f"Dropping {np.isnan(target).sum()} rows with NaNs in target column...")
             df = df.dropna(subset=[target_column])  # Drop rows where the target column has NaNs
             df_numeric = df.drop(columns=[target_column]).select_dtypes(include=[np.number])  # Re-align df_numeric
             target = df[target_column].values  # Re-assign the cleaned target

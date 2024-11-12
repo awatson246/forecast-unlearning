@@ -1,5 +1,5 @@
 import numpy as np
-from tensorflow.keras.models import clone_model
+from tensorflow.python.keras.models import clone_model
 
 def knowledge_distill(original_model, X, y, temperature=2.0):
     """Create a new model that mimics the behavior of the original model using softened probabilities."""

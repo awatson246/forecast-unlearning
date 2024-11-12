@@ -4,17 +4,7 @@ import numpy as np
 from sklearn.metrics import root_mean_squared_error
 
 def train_xgboost(train, test, target_column):
-    """
-    Train an XGBoost model and evaluate RMSE on the test set.
-    
-    Args:
-        train: Training data.
-        test: Test data.
-        target_column: Column name of the target variable.
-    
-    Returns:
-        model: Trained XGBoost model.
-    """
+    """ Train an XGBoost model and evaluate RMSE on the test set.    """
     # Separate features and target
     X_train = train.drop(columns=[target_column])
     y_train = train[target_column]
