@@ -3,29 +3,34 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import root_mean_squared_error
 
-def train_xgboost(train, test):
-    """ Train an XGBoost model and evaluate RMSE on the test set.    """
+def train_xgboost(train_data, test_data):
+    """Trains an XGBoost model and calculates RMSE on the test set."""
+    trainX, trainY = train_data
+    testX, testY = test_data
 
-    trainX, trainY = train
-    testX, testY = test
-    
-    # Convert data to DMatrix format (required by XGBoost)
-    train_data = xgb.DMatrix(trainX, label=trainY)
-    test_data = xgb.DMatrix(testX, label=testY)
+    # Flatten the input data to 2D
+    trainX_flat = trainX.reshape(trainX.shape[0], -1)
+    testX_flat = testX.reshape(testX.shape[0], -1)
 
-    # Set XGBoost parameters
+    # Prepare DMatrix objects for training and testing
+    train_data = xgb.DMatrix(trainX_flat, label=trainY)
+    test_data = xgb.DMatrix(testX_flat, label=testY)
+
+    # Define XGBoost parameters
     params = {
-        'objective': 'reg:squarederror',
-        'eval_metric': 'rmse'
+        "objective": "reg:squarederror",
+        "eval_metric": "rmse",
+        "verbosity": 0,  # Suppress logging output
     }
 
     # Train the model with early stopping
-    evals = [(test_data, "eval")]
-    model = xgb.train(params, train_data, num_boost_round=100, early_stopping_rounds=10, evals=evals, verbose_eval=10)
+    evals = [(train_data, "train"), (test_data, "test")]
+    model = xgb.train(params, train_data, num_boost_round=200, evals=evals, early_stopping_rounds=10)
 
-    # Predict and calculate RMSE on test set
-    y_pred = model.predict(test_data)
-    rmse = np.sqrt(root_mean_squared_error(testY, y_pred))
-    print(f"XGBoost Model RMSE: {rmse}")
+    # Predict on the test set
+    predictions = model.predict(test_data)
+
+    # Calculate RMSE
+    rmse = root_mean_squared_error(testY, predictions)
 
     return rmse, model

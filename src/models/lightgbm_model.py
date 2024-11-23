@@ -4,7 +4,7 @@ import math
 from sklearn.metrics import root_mean_squared_error
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RandomizedSearchCV
-from lightgbm import early_stopping, log_evaluation
+from lightgbm import early_stopping
 
 
 def train_lightgbm(trainX, trainY, testX, testY):
@@ -30,7 +30,7 @@ def train_lightgbm(trainX, trainY, testX, testY):
     fit_params = {
         "eval_set": [(testX_flat, testY)],
         "eval_metric": "rmse",
-        "callbacks": [early_stopping(stopping_rounds=10), log_evaluation(10)]
+        "callbacks": [early_stopping(stopping_rounds=10)]
     }
 
     # Perform Grid Search for hyperparameter tuning
