@@ -97,7 +97,7 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
     return sorted_importance, most_important_feature
 
 
-def evaluate_unlearning(model, X, y, unlearned_X, model_type):
+def evaluate_unlearning(model, X, y, unlearned_X, model_type, unlearning_type):
     """Evaluates the unlearning process and computes RMSE."""
 
     # Evaluate initial RMSE
@@ -107,8 +107,6 @@ def evaluate_unlearning(model, X, y, unlearned_X, model_type):
             X = xgb.DMatrix(data=X)
     elif model_type == "lstm":
         pass  # Keep X in 3D for LSTM
-
-    #print(f"Shape of X: {X.shape}")
 
     y_pred_initial = model.predict(X)
     initial_rmse = np.sqrt(np.mean((y - y_pred_initial) ** 2))
