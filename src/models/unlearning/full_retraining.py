@@ -1,16 +1,23 @@
-from lightgbm import LGBMRegressor
-from xgboost import XGBRegressor
-from keras.models import Sequential
+import numpy as np
+from src.models.lstm_model import train_lstm
+from src.models.lightgbm_model import train_lightgbm
+from src.models.xgboost_model import train_xgboost
 
-def retrain_model(trainX, trainY, model_type, **model_params):
+def full_retraining(model, trainX, trainY, testX, testY, feature_index, model_type):
+    """
+    Fully retrains the model after removing the most important feature from the dataset.
+    """
+    # Remove the most important feature from both train and test data
+    retrain_trainX = np.delete(trainX, feature_index, axis=-1)
+    retrain_testX = np.delete(testX, feature_index, axis=-1)
+
     if model_type == "lightgbm":
-        new_model = LGBMRegressor(**model_params)
-        new_model.fit(trainX, trainY)
+        retrained_rmse, _ = train_lightgbm(retrain_trainX, trainY, retrain_testX, testY)
     elif model_type == "xgboost":
-        new_model = XGBRegressor(**model_params)
-        new_model.fit(trainX, trainY)
+        retrained_rmse, _ = train_xgboost((retrain_trainX, trainY), (retrain_testX, testY))
     elif model_type == "lstm":
-        new_model = Sequential()  # Build and compile LSTM
-        # Add layers, compile, and fit (example assumes architecture is predefined)
-        new_model.fit(trainX, trainY, epochs=10, batch_size=32, verbose=0)
-    return new_model
+        input_shape = retrain_trainX.shape[1:]
+        retrained_rmse, _, _, _ = train_lstm((retrain_trainX, trainY), (retrain_testX, testY), input_shape)
+
+    return retrained_rmse
+

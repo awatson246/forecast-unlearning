@@ -15,6 +15,15 @@ from sklearn.metrics import root_mean_squared_error
 
 
 def main():
+
+    # Prepare outputs for metrics
+    metrics_summary = {
+        "Original RMSE": None,
+        "Feature Masking RMSE": None,
+        "Fine-Tuned RMSE": None,
+        "Fully Retrained RMSE": None
+    }
+
     # Display menu and get user choices
     display_menu()
     dataset_choice = get_user_choice()
@@ -76,7 +85,9 @@ def main():
 
     # Display RMSE
     print(f"Model RMSE: {rmse}")
+    metrics_summary["Original RMSE"] = rmse
 
+    # Get feature importance for full model
     sorted_importance, most_important_feature = permutation_importance(
         model,
         testX,  # Now it's a 2D DataFrame with the correct shape and column names
@@ -86,64 +97,30 @@ def main():
         model_type=model_type
     )
 
-    while True: 
-        # Select and set the unlearning model
-        display_unlearning_menu()
-        unlearning_choice = get_unlearning_choice()
+    # Sequential Unlearning
+    feature_index = df.columns.get_loc(most_important_feature)
+    
+    # Apply Feature Masking
+    print(f"\nMasking {most_important_feature}...")
+    feature_masking_rmse = feature_masking.apply_feature_masking(model, testX, feature_index, model_type, testY)
+    metrics_summary["Feature Masking RMSE"] = feature_masking_rmse
+    
+    # Apply Fine-Tuning
+    print("Fine Tuning...")
+    fine_tuned_rmse = fine_tuning.fine_tune_model(model, trainX, trainY, testX, testY, feature_index, model_type)
+    metrics_summary["Fine-Tuned RMSE"] = fine_tuned_rmse
+    
+    # Full Retraining
+    print("Retraining the model...")
+    retrained_rmse = full_retraining.full_retraining(model, trainX, trainY, testX, testY, feature_index, model_type)
+    metrics_summary["Fully Retrained RMSE"] = retrained_rmse
 
-        if unlearning_choice == 4:
-            break;
+    # Pretty print metrics summary
+    print(f"\nUnlearned Feature: {most_important_feature}")
+    for method, rmse in metrics_summary.items():
+        print(f"{method}: {rmse:.4f}")
 
-        # Prepare the feature_index for feature masking or layer freezing, if needed
-        feature_names = df_processed.columns.tolist()
-        feature_index = feature_names.index(most_important_feature)
-
-        if unlearning_choice == '1':
-            # Feature masking: apply to data and keep the original model
-            unlearning_type = "feture_masking"
-            unlearned_X = feature_masking.apply_feature_masking(model, testX, feature_index)
-
-            if model_type == "lightgbm" or "xgboost":
-                # Reshape unlearned_X to 2D for LightGBM
-                unlearned_X = unlearned_X.reshape(unlearned_X.shape[0], -1)
-                if model_type == "xgboost":
-                    unlearned_X = xgb.DMatrix(data=unlearned_X)
-            elif model_type == "lstm":
-                # Keep unlearned_X in 3D for LSTM
-                pass
-
-            # Run prediction on the masked data
-            y_pred_unlearned = model.predict(unlearned_X)
-
-            # Evaluate unlearning by calculating RMSE for original vs. unlearned predictions
-            initial_rmse, unlearned_rmse = evaluate_unlearning(model, testX, testY, unlearned_X, model_type, unlearning_type)
-
-
-        elif unlearning_choice == '2':
-            # Layer Freezing: Here you may not need feature_index, so we pass only the model and X
-            unlearning_type = "layer_freezing"
-            num_layers_to_freeze = 2  # or any number you choose
-            #unlearned_model = layer_freezing.apply_layer_freezing(model, num_layers_to_freeze, trainX, trainY)
-            unlearned_model = layer_freezing.apply_layer_freezing(model, num_layers_to_freeze, trainX, trainY)
-            unlearned_preds = unlearned_model.predict(testX)
-            unlearned_rmse = root_mean_squared_error(testY, unlearned_preds)
-            print(f"Unlearned RMSE after layer freezing: {unlearned_rmse}")
-            #initial_rmse, unlearned_rmse = evaluate_unlearning(model, testX, testY, unlearned_model, model_type, unlearning_type)
-
-        elif unlearning_choice == '3':
-            # Knowledge Distillation: Again, pass only model and X (depending on your function signature)
-            unlearning_choice = "knowledge_dist"
-            unlearned_model = lambda model, X, *args: knowledge_distillation.knowledge_distill(model, X, *args)
-
-            initial_rmse, unlearned_rmse = evaluate_unlearning(model, testX, testY, unlearned_model, model_type, unlearning_type)
-
-        else:
-            print("Invalid choice. Please select a valid model.")
-            return
-
-        print(f"Full model RMSE: {initial_rmse}")
-        print(f"Unlearning model RMSE: {unlearned_rmse}")
-        print("No errors this time!")
+    print("No errors this time!")
 
 
 if __name__ == "__main__":

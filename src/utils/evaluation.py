@@ -46,7 +46,7 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
     feature_importance = {}
 
     for idx, feature_name in enumerate(feature_names):
-        if feature_name in ("index", "year", "month", "day", "Row ID"):
+        if feature_name in ("index", "year", "month", "day", "Row ID", "Date"):
             continue
         
         # Make sure we don't over-index
