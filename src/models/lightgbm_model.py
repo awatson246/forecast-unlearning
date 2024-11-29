@@ -53,6 +53,9 @@ def train_lightgbm(trainX, trainY, testX, testY):
     # Calculate RMSE
     rmse = root_mean_squared_error(testY, predictions)
 
+    # Ensure testY is also flattened
+    testY_flat = testY.flatten()
+
     # Only print the essentials
     print(f"Best Hyperparameters: {grid_search.best_params_}")
     print(f"RMSE on Test Set: {rmse:.4f}")

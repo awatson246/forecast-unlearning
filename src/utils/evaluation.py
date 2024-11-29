@@ -6,38 +6,6 @@ from sklearn.preprocessing import MinMaxScaler
 import lightgbm as lgb
 import xgboost as xgb
 
-def evaluate_model(model, trainX, trainY, testX, testY):
-    """Evaluates the model, prints metrics, and plots actual vs. predicted values."""
-    
-    # Predict values for train and test data
-    trainPredict = model.predict(trainX)
-    testPredict = model.predict(testX)
-
-    # Invert scaling for predictions and true values
-    scaler = MinMaxScaler().fit(trainY.reshape(-1, 1))
-    trainPredict = scaler.inverse_transform(trainPredict.reshape(-1, 1))
-    testPredict = scaler.inverse_transform(testPredict.reshape(-1, 1))
-    trainY = scaler.inverse_transform(trainY.reshape(-1, 1))
-    testY = scaler.inverse_transform(testY.reshape(-1, 1))
-
-    # Calculate and display RMSE and R² scores
-    rmse = np.sqrt(root_mean_squared_error(testY, testPredict))
-    r2 = r2_score(testY, testPredict)
-    print(f"Model RMSE: {rmse:.4f}")
-    print(f"Model R²: {r2:.4f}")
-
-    # Plot Actual vs Predicted values
-    plt.figure(figsize=(12, 6))
-    plt.plot(trainY, label='Actual Train Data')
-    plt.plot(trainPredict, label='Predicted Train Data')
-    plt.plot(np.arange(len(trainY), len(trainY) + len(testY)), testY, label='Actual Test Data')
-    plt.plot(np.arange(len(trainY), len(trainY) + len(testY)), testPredict, label='Predicted Test Data')
-    plt.xlabel('Time')
-    plt.ylabel('Value')
-    plt.title('Actual vs Predicted Values')
-    plt.legend()
-    plt.show()
-
 def permutation_importance(model, X, y, feature_names, look_back, model_type):
     """Calculates, ranks, and returns the permutation importance of all features."""
     
@@ -88,7 +56,7 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
     # Print sorted permutation importance results
     print("\nPermutation Importance for All Features:")
     for feature_name, score in sorted_importance:
-        print(f"{feature_name}: RMSE with Permutation = {score:.4f}")
+        print(f"{feature_name}: RMSE with Permutation = {score:.8f}")
 
     # Save the most important feature for unlearning
     most_important_feature = sorted_importance[0][0]
@@ -97,28 +65,59 @@ def permutation_importance(model, X, y, feature_names, look_back, model_type):
     return sorted_importance, most_important_feature
 
 
-def evaluate_unlearning(model, X, y, unlearned_X, model_type, unlearning_type):
-    """Evaluates the unlearning process and computes RMSE."""
-
-    # Evaluate initial RMSE
-    if model_type == "lightgbm" or "xgboost":
-        X = X.reshape(X.shape[0], -1)  # Reshape for LightGBM (2D)
+def feature_sensitivity_analysis(model, testX, testY, feature_index, model_type, dataset):
+    """
+    Evaluate feature sensitivity for a trained model.
+    """
+    sensitivity_scores = []
+    
+    if model_type == "lstm":
+        # Use the original 3D shape for LSTM
+        X_input = testX
+    else:
+        # Flatten input for non-LSTM models
+        X_input = testX.reshape(testX.shape[0], -1)
         if model_type == "xgboost":
-            X = xgb.DMatrix(data=X)
-    elif model_type == "lstm":
-        pass  # Keep X in 3D for LSTM
+            X_input = xgb.DMatrix(data=X_input)
 
-    y_pred_initial = model.predict(X)
-    initial_rmse = np.sqrt(np.mean((y - y_pred_initial) ** 2))
+    # Predict using the correct input format
+    original_predictions = model.predict(X_input)
 
-    # Reshape unlearned_X for LightGBM (2D) and LSTM (3D)
-    if model_type == "lightgbm":
-        unlearned_X = unlearned_X.reshape(unlearned_X.shape[0], -1)  # Flatten to 2D for LightGBM
-    elif model_type == "lstm":
-        pass  # Keep unlearned_X in 3D for LSTM
+    for i in range(testX.shape[-1]):  # Loop through all features
+        if model_type == "lstm":
+            # Ensure the feature index is valid
+            if i >= testX.shape[2]:
+                print(f"Skipping index {i} as it exceeds the feature dimension of {testX.shape[2]}")
+                continue
 
-    # Predict with unlearned data
-    y_pred_unlearned = model.predict(unlearned_X)
-    unlearned_rmse = np.sqrt(np.mean((y - y_pred_unlearned) ** 2))
+            # Perturb the selected feature across all time steps
+            perturbed_testX = testX.copy()
+            for t in range(testX.shape[1]):
+                perturbed_testX[:, t, i] = np.random.permutation(perturbed_testX[:, t, i])
 
-    return initial_rmse, unlearned_rmse
+            perturbed_input = perturbed_testX
+        else:
+            # Flatten input for non-LSTM models and ensure valid feature index
+            perturbed_testX = testX.copy() if isinstance(testX, pd.DataFrame) else np.copy(testX)
+            if i >= perturbed_testX.shape[1]:
+                print(f"Skipping index {i} as it exceeds the feature dimension of {perturbed_testX.shape[1]}")
+                continue
+
+            perturbed_testX[:, i] = np.random.permutation(perturbed_testX[:, i])
+            perturbed_input = perturbed_testX.reshape(perturbed_testX.shape[0], -1)
+            if model_type == "xgboost":
+                perturbed_input = xgb.DMatrix(data=perturbed_input)
+
+        # Predict with perturbed data
+        perturbed_predictions = model.predict(perturbed_input)
+
+        # Calculate sensitivity as RMSE difference
+        sensitivity = root_mean_squared_error(original_predictions, perturbed_predictions)
+        sensitivity_scores.append(sensitivity)
+
+        # Sensitivity for masked feature
+        if i == feature_index:
+            print(f"Sensitivity for masked feature {i}: {sensitivity}")
+            masked_sensitivity = sensitivity
+
+    return masked_sensitivity, sensitivity_scores

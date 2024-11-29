@@ -33,4 +33,4 @@ def fine_tune_model(model, trainX, trainY, testX, testY, feature_index, model_ty
     fine_tuned_rmse = np.sqrt(mean_squared_error(testY, fine_tuned_predictions))
     
     #return fine_tuned_predictions, fine_tuned_rmse
-    return fine_tuned_rmse
+    return fine_tuned_rmse, model

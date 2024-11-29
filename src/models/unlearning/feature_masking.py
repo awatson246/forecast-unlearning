@@ -12,9 +12,9 @@ def apply_feature_masking(model, data, feature_index, model_type, true_labels):
     
     # Copy data to avoid modifying the original data
     masked_data = data.copy()
-    
-    # Set the specified feature to zero across all time steps (masking)
-    masked_data[:, :, feature_index] = 0
+
+    # Masking
+    masked_data[:, :, feature_index] = 0  # Example masking logic
 
     # For XGBoost and LightGBM, convert the masked data into 2D (flatten the 3D array)
     if model_type in ["xgboost", "lightgbm"]:
@@ -31,4 +31,4 @@ def apply_feature_masking(model, data, feature_index, model_type, true_labels):
     # Calculate RMSE (Root Mean Squared Error)
     rmse = np.sqrt(mean_squared_error(true_labels, predictions))
     
-    return rmse
+    return rmse, model
