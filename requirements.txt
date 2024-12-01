@@ -5,6 +5,4 @@ tensorflow
 scikit-learn
 lightgbm
 xgboost
-shap
-ipython
 catboost
