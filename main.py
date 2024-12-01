@@ -6,12 +6,15 @@ from src.data_preprocessing import DataPreprocessor
 from src.models.lstm_model import train_lstm
 from src.models.lightgbm_model import train_lightgbm
 from src.models.xgboost_model import train_xgboost
-from src.utils.evaluation import permutation_importance, feature_sensitivity_analysis
+from src.utils.evaluation import permutation_importance, feature_sensitivity_analysis, shap_feature_importance
 from src.utils.loading_animation import loading_animation
 from src.models.unlearning import feature_masking, fine_tuning, full_retraining
 import threading
 import xgboost as xgb
 from sklearn.metrics import root_mean_squared_error
+import tensorflow as tf
+tf.compat.v1.enable_eager_execution()
+
 
 
 def main():
@@ -24,7 +27,7 @@ def main():
     }
     sensitivity_summary = {
         "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained"],
-        "Sensitivity": [None, None, None, None],
+        "SHAP Importance": [None, None, None, None],
     }
 
     # Display menu and get user choices
@@ -90,52 +93,88 @@ def main():
     # Capture  RMSE for original model
     metrics_summary["RMSE"][0] = rmse
 
-    # Get feature importance for full model
-    sorted_importance, most_important_feature = permutation_importance(
-        model,
-        testX,  # Now it's a 2D DataFrame with the correct shape and column names
-        testY,
-        df.columns,
-        look_back=3, 
-        model_type=model_type
-    )
+    # # Get feature importance for full model
+    # sorted_importance, most_important_feature = permutation_importance(
+    #     model,
+    #     testX,  # Now it's a 2D DataFrame with the correct shape and column names
+    #     testY,
+    #     df.columns,
+    #     look_back=3, 
+    #     model_type=model_type
+    # )
 
+    # Get SHAP feature importance for full model
+    print("\nComputing SHAP Feature Importance...")
+    if model_type == "lstm":
+        X_input = testX  # Use original 3D format for LSTM
+    else:
+        X_input = testX.reshape(testX.shape[0], -1)  # Flatten input for non-LSTM models
+
+    shap_values, feature_importance, most_important_feature = shap_feature_importance(model, X_input, model_type, df.columns)
+    sensitivity_summary["SHAP Importance"][0] = feature_importance
+
+    # Extract feature index
+    feature_index = df.columns.get_loc(most_important_feature)
+    print(f"\nMost important feature for unlearning: {most_important_feature}")
 
     # Sequential Unlearning
     feature_index = df.columns.get_loc(most_important_feature)
 
-    print("Baseline Sensitivity Analysis: ")
-    baseline_sensitivity, sensitivity_scores = feature_sensitivity_analysis(model, testX, testY, feature_index, model_type, dataset_choice)
-    sensitivity_summary["Sensitivity"][0] = baseline_sensitivity
-    
+    # print("Baseline Sensitivity Analysis: ")
+    # baseline_sensitivity, sensitivity_scores = feature_sensitivity_analysis(model, testX, testY, feature_index, model_type, dataset_choice)
+    # sensitivity_summary["Sensitivity"][0] = baseline_sensitivity
 
     # Apply Feature Masking
     print(f"\nMasking {most_important_feature}...")
     feature_masking_rmse, feature_masking_model = feature_masking.apply_feature_masking(model, testX, feature_index, model_type, testY)
     metrics_summary["RMSE"][1] = feature_masking_rmse
 
-    print("Masked Sensitivity Analysis: ")
-    masked_sensitivity, sensitivity_scores = feature_sensitivity_analysis(feature_masking_model, testX, testY, feature_index, model_type, dataset_choice)
-    sensitivity_summary["Sensitivity"][1] = masked_sensitivity
-    
+    # print("Masked Sensitivity Analysis: ")
+    # masked_sensitivity, sensitivity_scores = feature_sensitivity_analysis(feature_masking_model, testX, testY, feature_index, model_type, dataset_choice)
+    # sensitivity_summary["Sensitivity"][1] = masked_sensitivity
+    # Re-compute SHAP values after masking
+    print("\nAssessing SHAP Feature Importance Post-Masking...")
+    shap_values_masked, feature_importance_masked, _ = shap_feature_importance(
+        feature_masking_model,
+        testX.reshape(testX.shape[0], -1) if model_type != "lstm" else testX,
+        model_type,
+        df.columns
+        )
+    sensitivity_summary["SHAP Importance"][1] = feature_importance_masked
 
     # Apply Fine-Tuning
     print("Fine Tuning...")
     fine_tuned_rmse, fine_tuning_model = fine_tuning.fine_tune_model(model, trainX, trainY, testX, testY, feature_index, model_type)
     metrics_summary["RMSE"][2] = fine_tuned_rmse
 
-    print("Fine Tuned Sensitivity Analysis: ")
-    fineTune_sensitivity, sensitivity_scores = feature_sensitivity_analysis(fine_tuning_model, testX, testY, feature_index, model_type, dataset_choice)
-    sensitivity_summary["Sensitivity"][2] = fineTune_sensitivity
+    # print("Fine Tuned Sensitivity Analysis: ")
+    # fineTune_sensitivity, sensitivity_scores = feature_sensitivity_analysis(fine_tuning_model, testX, testY, feature_index, model_type, dataset_choice)
+    # sensitivity_summary["Sensitivity"][2] = fineTune_sensitivity
+    print("\nAssessing SHAP Feature Importance Post- Fine Tuning...")
+    shap_values_tuned, feature_importance_tuned, _ = shap_feature_importance(
+        fine_tuning_model,
+        testX.reshape(testX.shape[0], -1) if model_type != "lstm" else testX,
+        model_type,
+        df.columns
+        )
+    sensitivity_summary["SHAP Importance"][2] = feature_importance_tuned
     
     # Full Retraining
     print("Retraining the model...")
     retrained_rmse , retrained_model = full_retraining.full_retraining(model, trainX, trainY, testX, testY, feature_index, model_type)
     metrics_summary["RMSE"][3] = retrained_rmse
 
-    print("Retrained Model Sensitivity Analysis: ")
-    retrained_sensitivity, sensitivity_scores = feature_sensitivity_analysis(retrained_model, testX, testY, feature_index, model_type, dataset_choice)
-    sensitivity_summary["Sensitivity"][3] = retrained_sensitivity
+    # print("Retrained Model Sensitivity Analysis: ")
+    # retrained_sensitivity, sensitivity_scores = feature_sensitivity_analysis(retrained_model, testX, testY, feature_index, model_type, dataset_choice)
+    # sensitivity_summary["Sensitivity"][3] = retrained_sensitivity
+    print("\nAssessing SHAP Feature Importance Post-Retraining...")
+    shap_values_tuned, feature_importance_tuned, _ = shap_feature_importance(
+        retrained_model,
+        testX.reshape(testX.shape[0], -1) if model_type != "lstm" else testX,
+        model_type,
+        df.columns
+        )
+    sensitivity_summary["SHAP Importance"][3] = feature_importance_tuned
 
     print(f"\nMost important feature for unlearning: {most_important_feature}")
 

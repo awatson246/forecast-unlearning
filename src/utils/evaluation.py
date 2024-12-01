@@ -5,6 +5,8 @@ from sklearn.metrics import root_mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler
 import lightgbm as lgb
 import xgboost as xgb
+import shap
+shap.initjs()
 
 def permutation_importance(model, X, y, feature_names, look_back, model_type):
     """Calculates, ranks, and returns the permutation importance of all features."""
@@ -121,3 +123,56 @@ def feature_sensitivity_analysis(model, testX, testY, feature_index, model_type,
             masked_sensitivity = sensitivity
 
     return masked_sensitivity, sensitivity_scores
+
+def shap_feature_importance(model, X, model_type, feature_names):
+    """
+    Calculate SHAP feature importance values and return them for further analysis.
+    
+    Args:
+        model: The trained model (LSTM, LightGBM, or XGBoost).
+        X: The input data to explain.
+        model_type: The type of model (lstm, lightgbm, xgboost).
+        feature_names: List of feature names.
+        
+    Returns:
+        shap_values: Array of SHAP values for each feature.
+        feature_importance: Dictionary of feature names and their mean absolute SHAP values.
+        most_important_feature: The feature with the highest importance value.
+    """
+    # List of features to exclude from feature importance
+    exclude_columns = ["index", "year", "month", "day", "Row ID", "Date"]
+    
+    # Convert input for SHAP
+    if model_type == "lstm":
+        explainer = shap.DeepExplainer(model, X)  # Use DeepExplainer for LSTM
+    elif model_type in ["lightgbm", "xgboost"]:
+        explainer = shap.TreeExplainer(model)  # Use TreeExplainer for tree-based models
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}")
+
+    shap_values = explainer.shap_values(X)  # Compute SHAP values
+
+    # Aggregate importance values across all features
+    if model_type == "lstm":
+        mean_shap_values = np.mean(np.abs(shap_values[0]), axis=0)
+    else:
+        mean_shap_values = np.mean(np.abs(shap_values), axis=0)
+
+    # Create feature importance dictionary, excluding unwanted features
+    feature_importance = {}
+    for feature, value in zip(feature_names, mean_shap_values):
+        if feature not in exclude_columns:
+            feature_importance[feature] = value
+
+    # Sort features by importance (descending)
+    sorted_importance = sorted(feature_importance.items(), key=lambda item: item[1], reverse=True)
+
+    # Most important feature
+    most_important_feature = sorted_importance[0][0]
+
+    # Print feature importance
+    print("\nSHAP Feature Importance:")
+    for feature, importance in sorted_importance:
+        print(f"{feature}: {importance:.4f}")
+
+    return shap_values, feature_importance, most_important_feature

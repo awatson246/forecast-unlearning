@@ -1,10 +1,13 @@
 import math
 import numpy as np
 from sklearn.metrics import mean_squared_error
+import tensorflow as tf
+tf.compat.v1.enable_eager_execution()
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
-
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l2
 
 def train_lstm(train, test, input_shape, look_back=1):
     """Builds, trains, and evaluates the LSTM model."""

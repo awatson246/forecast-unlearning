@@ -5,6 +5,7 @@ from sklearn.metrics import root_mean_squared_error
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RandomizedSearchCV
 from lightgbm import early_stopping
+from lightgbm import LGBMRegressor
 
 
 def train_lightgbm(trainX, trainY, testX, testY):
