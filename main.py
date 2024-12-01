@@ -8,19 +8,22 @@ from src.models.xgboost_model import train_xgboost
 from src.models.catboost_model import train_catboost
 from src.utils.evaluation import compute_feature_importance
 from src.utils.loading_animation import loading_animation
-from src.models.unlearning import feature_masking, fine_tuning, full_retraining
+from src.models.unlearning import feature_masking, fine_tuning, full_retraining, pruning
 import threading
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import tensorflow as tf
+
 
 def main():
     # Prepare outputs for metrics
     metrics_summary = {
-        "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained"],
-        "RMSE": [None, None, None, None],
+        "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained", "Pruned"],
+        "RMSE": [None, None, None, None, None],
     }
     feature_importance_summary = {
-        "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained"], 
-        "Feature Importance": [None, None, None, None]
+        "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained", "Pruned"], 
+        "Feature Importance": [None, None, None, None, None]
     }
 
     # Display menu and get user choices
@@ -117,6 +120,16 @@ def main():
     retrained_rmse, retrained_model, retrained_sorted_importances = full_retraining.full_retraining(model, trainX, trainY, testX, testY, feature_indices, model_type, feature_names)
     metrics_summary["RMSE"][3] = retrained_rmse
     feature_importance_summary["Feature Importance"][3] = retrained_sorted_importances
+
+    # Pruning
+    print("Trimming some trees (don't worry, they'll grow back)...")
+    if model_type == "lightgbm":
+        pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_lightgbm_trees(model, location_columns, feature_names, trainX, trainY, testX, testY)
+    elif model_type == "xgboost":
+        pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_xgboost_trees(model, location_columns, feature_names, feature_indices, trainX, trainY, testX, testY)
+
+    metrics_summary["RMSE"][4] = pruned_rmse
+    feature_importance_summary["Feature Importance"][4] = pruned_sorted_importance
 
     # Print metrics summary
     print(f"\nMasked columns: {location_columns}")
