@@ -1,16 +1,14 @@
 import lightgbm as lgb
 import numpy as np
-import math
 from sklearn.metrics import root_mean_squared_error
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import RandomizedSearchCV
 from lightgbm import early_stopping
-from lightgbm import LGBMRegressor
 
-
-def train_lightgbm(trainX, trainY, testX, testY):
-    """Trains a LightGBM model and calculates RMSE on test data, with hyperparameter tuning."""
-    
+def train_lightgbm(trainX, trainY, testX, testY, feature_names, look_back=10):
+    """
+    Trains a LightGBM model and calculates RMSE on test data,
+    handling flattened arrays and grouping feature importances.
+    """
     # Reshape the data from 3D to 2D (flatten the time series data)
     trainX_flat = trainX.reshape(trainX.shape[0], -1)  # Flattening to 2D
     testX_flat = testX.reshape(testX.shape[0], -1)  # Flattening to 2D
@@ -20,11 +18,10 @@ def train_lightgbm(trainX, trainY, testX, testY):
 
     # Define hyperparameters for tuning
     param_grid = {
-        'num_leaves': [31, 50, 100],
-        'learning_rate': [0.01, 0.05, 0.1],
-        'n_estimators': [100, 200, 300],
-        'max_depth': [-1, 10, 20],
-        'min_data_in_leaf': [20, 50, 100]
+        'num_leaves': [31, 50],
+        'learning_rate': [0.01, 0.05],
+        'n_estimators': [100, 200],
+        'max_depth': [-1, 10],
     }
 
     # Early stopping and logging callbacks
@@ -41,7 +38,7 @@ def train_lightgbm(trainX, trainY, testX, testY):
         cv=3,
         scoring='neg_root_mean_squared_error',
         n_jobs=-1,
-        verbose=0  # Set verbose to 0 to suppress output
+        verbose=0
     )
     grid_search.fit(trainX_flat, trainY, **fit_params)
 
@@ -54,11 +51,19 @@ def train_lightgbm(trainX, trainY, testX, testY):
     # Calculate RMSE
     rmse = root_mean_squared_error(testY, predictions)
 
-    # Ensure testY is also flattened
-    testY_flat = testY.flatten()
+    # Get feature importances
+    flattened_importances = best_model.booster_.feature_importance(importance_type="gain")
 
-    # Only print the essentials
-    print(f"Best Hyperparameters: {grid_search.best_params_}")
-    print(f"RMSE on Test Set: {rmse:.4f}")
+    # Map the flattened importances back to the original feature names
+    grouped_importances = {name: 0 for name in feature_names}
+    for i, importance in enumerate(flattened_importances):
+        original_feature_idx = i % len(feature_names)
+        original_feature_name = feature_names[original_feature_idx]
+        grouped_importances[original_feature_name] += importance
 
-    return rmse, best_model
+    # Normalize by the number of time steps
+    grouped_importances = {k: v / look_back for k, v in grouped_importances.items()}
+
+    sorted_importances = sorted(grouped_importances.items(), key=lambda x: x[1], reverse=True)
+
+    return rmse, best_model, sorted_importances

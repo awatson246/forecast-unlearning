@@ -7,3 +7,4 @@ lightgbm
 xgboost
 shap
 ipython
+catboost

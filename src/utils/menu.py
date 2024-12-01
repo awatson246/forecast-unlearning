@@ -9,19 +9,9 @@ def get_user_choice():
 
 def display_model_menu():
     print("Choose a model:")
-    print("1: LSTM")
-    print("2: LightGBM")
-    print("3: XGBoost")
+    print("1: LightGBM")
+    print("2: XGBoost")
+    print("3: CatBoost")
 
 def get_model_choice():
-    return input("Enter the number of your choice: ")
-
-def display_unlearning_menu():
-    print("Choose an unlearning model:") 
-    print("1. Feature Masking")
-    print("2. Layer Freezing")
-    print("3. Knowledge Distillation")
-    print("4. Exit Unlearning")
-
-def get_unlearning_choice():
     return input("Enter the number of your choice: ")

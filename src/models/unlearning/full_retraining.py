@@ -1,35 +1,44 @@
 import numpy as np
-from src.models.lstm_model import train_lstm
 from src.models.lightgbm_model import train_lightgbm
 from src.models.xgboost_model import train_xgboost
+from src.models.catboost_model import train_catboost
 
-def full_retraining(model, trainX, trainY, testX, testY, feature_index, model_type, look_back=10):
+def full_retraining(model, trainX, trainY, testX, testY, feature_columns, model_type, feature_names):
     """
-    Fully retrains the model after removing the most important feature from the dataset.
+    Fully retrains the model after removing multiple features.
+    Args:
+        model: The trained model (LightGBM, XGBoost, etc.)
+        trainX, trainY: Training data.
+        testX, testY: Test data.
+        feature_columns: List of feature column indices to mask.
+        model_type: The type of model ('lightgbm', 'xgboost', etc.)
+        feature_names: List of feature names.
+        
+    Returns:
+        Retrained RMSE and the retrained model.
     """
-    # Check model type and retrain accordingly
-    if model_type == "lightgbm":
-        # Ensure LightGBM input is 2D
-        retrained_rmse, model = train_lightgbm(trainX, trainY, testX, testY)
-    elif model_type == "xgboost":
-        # Ensure XGBoost input is 2D
-        retrained_rmse, model = train_xgboost((trainX, trainY), (testX, testY))
-    elif model_type == "lstm":
-        # LSTM expects 3D input; no need to reshape
-        print(f"Shape of retrain_trainX: {trainX.shape}")
-        
-        # Pass the data directly if already in 3D format
-        if len(trainX.shape) == 3:
-            retrain_trainX_lstm = trainX
-            retrain_testX_lstm = testX
-        else:
-            raise ValueError(f"LSTM model requires 3D input; got {trainX.shape} instead")
-        
-        retrained_rmse, model, _, _ = train_lstm((retrain_trainX_lstm, trainY), (retrain_testX_lstm, testY), retrain_trainX_lstm.shape[1:])
+    # Create a copy of the data to avoid modifying the original
+    retrained_trainX = trainX.copy()
+    retrained_testX = testX.copy()
+
+    # Masking multiple columns at once
+    for col in feature_columns:
+        retrained_trainX[:, :, col] = 0
+        retrained_testX[:, :, col] = 0
+
+    # Flatten the data for LightGBM and XGBoost
+    retrained_trainX_reshaped = retrained_trainX.reshape(retrained_trainX.shape[0], -1)  # Flatten to 2D
+    retrained_testX_reshaped = retrained_testX.reshape(retrained_testX.shape[0], -1)  # Flatten to 2D
     
-    return retrained_rmse, model
-
-
+    # Retrain the model with the masked data
+    if model_type == "lightgbm":
+        retrained_rmse, model, sorted_importances = train_lightgbm(retrained_trainX_reshaped, trainY, retrained_testX_reshaped, testY, feature_names)
+    elif model_type == "xgboost":
+        retrained_rmse, model, sorted_importances = train_xgboost((retrained_trainX_reshaped, trainY), (retrained_testX_reshaped, testY), feature_names)
+    elif model_type == "catboost":
+        retrained_rmse, model, sorted_importances = train_catboost(retrained_trainX_reshaped, trainY, retrained_testX_reshaped, testY, feature_names)
+    
+    return retrained_rmse, model, sorted_importances
 
 
 
