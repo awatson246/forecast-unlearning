@@ -1,3 +1,19 @@
+def initialize_metrics():
+    """Initialize the metrics summary for RMSE and feature importance."""
+    return {
+        "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained", "Pruned"],
+        "RMSE": [None] * 5,
+    }, {
+        "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained", "Pruned"],
+        "Feature Importance": [None] * 5
+    }
+
+def update_metrics_summary(metrics_summary, feature_importance_summary, rmse, sorted_importances, stage_index):
+    """Update the metrics summary with RMSE and feature importance."""
+    metrics_summary["RMSE"][stage_index] = rmse
+    feature_importance_summary["Feature Importance"][stage_index] = sorted_importances
+
+
 def compute_feature_importance(model, X, feature_names, model_type):
     """
     Compute feature importance based on the model type.

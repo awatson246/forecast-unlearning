@@ -1,13 +1,10 @@
 import xgboost as xgb
 from sklearn.metrics import root_mean_squared_error
 
-def train_xgboost(train_data, test_data, feature_names, look_back=10):
+def train_xgboost(trainX, trainY, testX, testY, feature_names, look_back=10):
     """
     Trains an XGBoost model and calculates RMSE on the test set, handling grouped feature importance.
     """
-    trainX, trainY = train_data
-    testX, testY = test_data
-
     # Flatten the input data to 2D
     trainX_flat = trainX.reshape(trainX.shape[0], -1)
     testX_flat = testX.reshape(testX.shape[0], -1)

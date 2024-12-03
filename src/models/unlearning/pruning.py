@@ -2,9 +2,6 @@ import lightgbm as lgb
 import numpy as np
 from sklearn.metrics import mean_squared_error
 import xgboost as xgb
-import tempfile
-import re  # Importing regex to clean the feature string
-import json
 
 def prune_lightgbm_trees(model, masked_features, feature_names, trainX, trainY, testX, testY):
     """
@@ -52,6 +49,7 @@ def prune_lightgbm_trees(model, masked_features, feature_names, trainX, trainY, 
     
     # Recalculate the number of trees in the pruned model
     pruned_model.num_trees = len(retained_trees)
+    print(f"Number of retained trees: {len(retained_trees)}")
 
     # Flatten the test data for prediction (ensure it is 2D)
     testX_reshaped = testX.reshape(testX.shape[0], -1)  # Flatten to 2D
@@ -86,6 +84,7 @@ def prune_xgboost_trees(model, masked_features, feature_names, trainX, trainY, t
     Args:
         model: Trained XGBoost model.
         masked_features: List of feature names to prune.
+        feature_names: List of original feature names.
         trainX, trainY: Training data.
         testX, testY: Testing data.
         
@@ -96,11 +95,7 @@ def prune_xgboost_trees(model, masked_features, feature_names, trainX, trainY, t
     """
     # Reshape trainX to 2D arrays (flatten time steps and features)
     trainX = trainX.reshape(-1, trainX.shape[-1])  # (20831 * 10, 9)
-    
-    # Reshape testX to 2D arrays (flatten time steps and features)
-    testX = testX.reshape(-1, testX.shape[-1])  # (5201 * 10, 9)
-    
-    # Reshape trainY and testY to match the reshaped trainX shape (repeat labels for each time step)
+    testX = testX.reshape(-1, testX.shape[-1])  
     trainY = np.tile(trainY, trainX.shape[0] // len(trainY))  # Repeat the labels for each time step
     testY = np.tile(testY, testX.shape[0] // len(testY))  # Repeat the labels for each time step
 
@@ -110,19 +105,28 @@ def prune_xgboost_trees(model, masked_features, feature_names, trainX, trainY, t
     
     # Dump the model structure (retrieve all trees and stats)
     tree_info = model.get_dump(with_stats=True)
-    
+
+    # Create a feature-to-index mapping
+    feature_to_index = {feature: i for i, feature in enumerate(feature_names)}
+
     # Identify trees to retain (exclude trees with splits on masked features)
     retained_trees = []
     for tree in tree_info:
         prune_tree = False
         for line in tree.splitlines():
-            # Look for "f<feature_index>" in the tree dump (where feature_index is the index of the feature)
-            if any(f"f{feature_names.index(feature)}" in line for feature in masked_features if feature in feature_names):
-                prune_tree = True
+            # Look for masked feature names in the tree dump (e.g., f0, f1, f2...)
+            for feature in masked_features:
+                feature_index = feature_to_index.get(feature, None)
+                if feature_index is not None and f"f{feature_index}" in line:
+                    prune_tree = True
+                    break
+            if prune_tree:
                 break
         if not prune_tree:
             retained_trees.append(tree)
 
+    print(f"Number of retained trees: {len(retained_trees)}")
+    
     # Extract parameters directly from the model's booster and prepare for retraining
     params = model.attributes()  # This will return a dictionary of parameters
 
@@ -141,7 +145,7 @@ def prune_xgboost_trees(model, masked_features, feature_names, trainX, trainY, t
     rmse = np.sqrt(mean_squared_error(testY, predictions))
 
     # Get feature importance after pruning
-    feature_importance = pruned_model.get_score(importance_type="weight")
+    feature_importance = pruned_model.get_score(importance_type="gain")
     
     # Map the importances back to the original feature names
     grouped_importances = {name: 0 for name in feature_names}
@@ -155,9 +159,9 @@ def prune_xgboost_trees(model, masked_features, feature_names, trainX, trainY, t
             grouped_importances[original_feature_name] += importance
         else:
             print(f"Warning: feature index {feature_index} out of range for feature names.")
-        
+    
     # Sort by importance (descending order)
     sorted_importances = sorted(grouped_importances.items(), key=lambda x: x[1], reverse=True)
-
+    print(f"Sorted feature importances: {sorted_importances}")
 
     return pruned_model, rmse, sorted_importances

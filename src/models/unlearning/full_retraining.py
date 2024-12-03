@@ -46,7 +46,7 @@ def full_retraining(model, trainX, trainY, testX, testY, feature_columns, model_
     if model_type == "lightgbm":
         retrained_rmse, model, sorted_importances = train_lightgbm(retrained_trainX_reshaped, trainY, retrained_testX_reshaped, testY, feature_names)
     elif model_type == "xgboost":
-        retrained_rmse, model, sorted_importances = train_xgboost((retrained_trainX_reshaped, trainY), (retrained_testX_reshaped, testY), feature_names)
+        retrained_rmse, model, sorted_importances = train_xgboost(retrained_trainX_reshaped, trainY, retrained_testX_reshaped, testY, feature_names)
     elif model_type == "catboost":
         retrained_rmse, model, sorted_importances = train_catboost(retrained_trainX_reshaped, trainY, retrained_testX_reshaped, testY, feature_names)
     else:

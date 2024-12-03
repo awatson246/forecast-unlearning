@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from src.utils.menu import display_menu, get_user_choice, display_model_menu, get_model_choice
 from src.data_loading import load_data
 from src.data_preprocessing import DataPreprocessor
@@ -12,8 +11,6 @@ from src.models.unlearning import feature_masking, fine_tuning, full_retraining,
 import threading
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-import tensorflow as tf
-
 
 def main():
     # Prepare outputs for metrics
@@ -76,7 +73,7 @@ def main():
             bunny_thread = threading.Thread(target=loading_animation)
             bunny_thread.start()
         
-        rmse, model, sorted_importances = train_xgboost((trainX, trainY), (testX, testY), feature_names)
+        rmse, model, sorted_importances = train_xgboost(trainX, trainY, testX, testY, feature_names)
         model_type = "xgboost"
     elif model_choice == '3':
         print("Training CatBoost model...")
@@ -126,18 +123,14 @@ def main():
     if model_type == "lightgbm":
         pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_lightgbm_trees(model, location_columns, feature_names, trainX, trainY, testX, testY)
     elif model_type == "xgboost":
-        pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_xgboost_trees(model, feature_names, feature_indices, trainX, trainY, testX, testY)
+        pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_xgboost_trees(model, location_columns, feature_names, trainX, trainY, testX, testY)
     elif model_type == "catboost":
         print("Pruning not avaliable for catboost ^^")
         pruned_model = None
         pruned_rmse = None
         pruned_sorted_importance = None
-
-    if pruned_rmse is not None:
-        metrics_summary["RMSE"][4] = pruned_rmse
-    else: 
-        metrics_summary["RMSE"][4] = pruned_rmse
-        feature_importance_summary["Feature Importance"][4] = pruned_sorted_importance
+    metrics_summary["RMSE"][4] = pruned_rmse
+    feature_importance_summary["Feature Importance"][4] = pruned_sorted_importance
 
     # Print metrics summary
     print(f"\nMasked columns: {location_columns}")

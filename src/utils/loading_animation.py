@@ -1,5 +1,6 @@
 import sys
 import time
+import threading
 
 def loading_animation():
     bunny0 = [
@@ -53,3 +54,10 @@ def loading_animation():
         
         # Sleep to slow down the animation
         time.sleep(0.25)
+
+def start_loading_animation(bun_choice):
+    """Start the bunny animation if the user chooses to."""
+    if bun_choice.lower() == 'y':
+        bunny_thread = threading.Thread(target=loading_animation)
+        bunny_thread.daemon = True
+        bunny_thread.start()
