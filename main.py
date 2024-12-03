@@ -126,10 +126,18 @@ def main():
     if model_type == "lightgbm":
         pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_lightgbm_trees(model, location_columns, feature_names, trainX, trainY, testX, testY)
     elif model_type == "xgboost":
-        pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_xgboost_trees(model, location_columns, feature_names, feature_indices, trainX, trainY, testX, testY)
+        pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_xgboost_trees(model, feature_names, feature_indices, trainX, trainY, testX, testY)
+    elif model_type == "catboost":
+        print("Pruning not avaliable for catboost ^^")
+        pruned_model = None
+        pruned_rmse = None
+        pruned_sorted_importance = None
 
-    metrics_summary["RMSE"][4] = pruned_rmse
-    feature_importance_summary["Feature Importance"][4] = pruned_sorted_importance
+    if pruned_rmse is not None:
+        metrics_summary["RMSE"][4] = pruned_rmse
+    else: 
+        metrics_summary["RMSE"][4] = pruned_rmse
+        feature_importance_summary["Feature Importance"][4] = pruned_sorted_importance
 
     # Print metrics summary
     print(f"\nMasked columns: {location_columns}")

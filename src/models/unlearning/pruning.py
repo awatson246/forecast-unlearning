@@ -4,6 +4,7 @@ from sklearn.metrics import mean_squared_error
 import xgboost as xgb
 import tempfile
 import re  # Importing regex to clean the feature string
+import json
 
 def prune_lightgbm_trees(model, masked_features, feature_names, trainX, trainY, testX, testY):
     """
@@ -78,64 +79,85 @@ def prune_lightgbm_trees(model, masked_features, feature_names, trainX, trainY, 
 
     return pruned_model, rmse, sorted_importances
 
-def prune_xgboost_trees(model, masked_features, feature_names, feature_indices, trainX, trainY, testX, testY):
+def prune_xgboost_trees(model, masked_features, feature_names, trainX, trainY, testX, testY):
     """
-    Prune trees in an XGBoost model by retraining without masked features.
+    Prune trees in an XGBoost model based on reliance on specified masked features.
     
     Args:
         model: Trained XGBoost model.
         masked_features: List of feature names to prune.
-        feature_names: List of all feature names.
-        feature_indices: Indices of features to be masked.
         trainX, trainY: Training data.
         testX, testY: Testing data.
         
     Returns:
-        pruned_model: Retrained XGBoost model.
-        rmse: RMSE of the retrained model.
-        feature_importance: Feature importance after retraining.
+        pruned_model: Pruned XGBoost model.
+        rmse: RMSE of the pruned model.
+        feature_importance: Feature importance after pruning.
     """
-    # Flatten train and test data
-    trainX_reshaped = trainX.reshape(trainX.shape[0], -1)
-    testX_reshaped = testX.reshape(testX.shape[0], -1)
+    # Reshape trainX to 2D arrays (flatten time steps and features)
+    trainX = trainX.reshape(-1, trainX.shape[-1])  # (20831 * 10, 9)
+    
+    # Reshape testX to 2D arrays (flatten time steps and features)
+    testX = testX.reshape(-1, testX.shape[-1])  # (5201 * 10, 9)
+    
+    # Reshape trainY and testY to match the reshaped trainX shape (repeat labels for each time step)
+    trainY = np.tile(trainY, trainX.shape[0] // len(trainY))  # Repeat the labels for each time step
+    testY = np.tile(testY, testX.shape[0] // len(testY))  # Repeat the labels for each time step
 
-    # Remove masked features from the datasets
-    pruned_trainX = np.delete(trainX_reshaped, feature_indices, axis=1)
-    pruned_testX = np.delete(testX_reshaped, feature_indices, axis=1)
+    # Create DMatrix objects for training and testing data
+    dtrain = xgb.DMatrix(trainX, label=trainY)
+    dtest = xgb.DMatrix(testX, label=testY)
+    
+    # Dump the model structure (retrieve all trees and stats)
+    tree_info = model.get_dump(with_stats=True)
+    
+    # Identify trees to retain (exclude trees with splits on masked features)
+    retained_trees = []
+    for tree in tree_info:
+        prune_tree = False
+        for line in tree.splitlines():
+            # Look for "f<feature_index>" in the tree dump (where feature_index is the index of the feature)
+            if any(f"f{feature_names.index(feature)}" in line for feature in masked_features if feature in feature_names):
+                prune_tree = True
+                break
+        if not prune_tree:
+            retained_trees.append(tree)
 
-    # Retrain the model without the masked features
-    dtrain = xgb.DMatrix(pruned_trainX, label=trainY)
-    dtest = xgb.DMatrix(pruned_testX, label=testY)
+    # Extract parameters directly from the model's booster and prepare for retraining
+    params = model.attributes()  # This will return a dictionary of parameters
 
-    # Retrieve original parameters and set a default number of rounds
-    params = model.attributes() or {}
-    params["objective"] = "reg:squarederror"  # Ensure the objective is set
-    num_boost_round = int(params.get("num_boost_round", 100))
+    # Create a new model using the retained trees
+    pruned_model = xgb.train(
+        params=params,  # Get the model's parameters
+        dtrain=dtrain,  # Use the same training data
+        num_boost_round=len(retained_trees),  # Set the number of trees to the length of retained trees
+        evals=[(dtest, 'eval')],  # Set validation data
+        early_stopping_rounds=None,  # No early stopping, we use only retained trees
+        verbose_eval=False  # Suppress output during training
+    )
 
-    retrained_model = xgb.train(params, dtrain, num_boost_round=num_boost_round)
-
-    # Evaluate the pruned model
-    predictions = retrained_model.predict(dtest)
+    # Evaluate the pruned model on the test data
+    predictions = pruned_model.predict(dtest)
     rmse = np.sqrt(mean_squared_error(testY, predictions))
 
     # Get feature importance after pruning
-    feature_importance = retrained_model.get_score(importance_type="weight")
-
-    # Initialize grouped_importances with all features, including masked ones, set to 0
+    feature_importance = pruned_model.get_score(importance_type="weight")
+    
+    # Map the importances back to the original feature names
     grouped_importances = {name: 0 for name in feature_names}
-
-    # Map pruned feature importance back to original feature names
-    total_importance = sum(feature_importance.values())  # Total importance for normalization
     for feature, importance in feature_importance.items():
-        original_index = int(feature[1:])
-        unflattened_index = original_index % len(feature_names)
-        original_feature_name = feature_names[unflattened_index]
-        grouped_importances[original_feature_name] += importance
-
-    # Normalize importance by the total importance
-    grouped_importances = {k: v / total_importance for k, v in grouped_importances.items()}
-
-    # Sort importance by descending order
+        # Extract feature index from the dump (e.g., f0, f1, f2...)
+        feature_index = int(feature[1:])  # This extracts the index number from f0, f1, ...
+        
+        # Ensure the index is within bounds of the feature_names list
+        if feature_index < len(feature_names):
+            original_feature_name = feature_names[feature_index]  # Get the original feature name
+            grouped_importances[original_feature_name] += importance
+        else:
+            print(f"Warning: feature index {feature_index} out of range for feature names.")
+        
+    # Sort by importance (descending order)
     sorted_importances = sorted(grouped_importances.items(), key=lambda x: x[1], reverse=True)
 
-    return retrained_model, rmse, sorted_importances
+
+    return pruned_model, rmse, sorted_importances
