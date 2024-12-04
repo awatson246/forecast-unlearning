@@ -26,18 +26,16 @@ def prune_lightgbm_trees(model, masked_features, feature_names, trainX, trainY, 
     for tree in tree_info:
         tree_structure = tree["tree_structure"]
 
-        # Recursive function to check splits in the tree
-        def check_split(split):
+        def check_split(split, masked_features):
+            """Recursively checks if a tree split is based on a masked feature."""
             if "split_feature" in split:
-                # If a split feature is in the masked list, return True (prune it)
                 return split["split_feature"] in masked_features
-            # Recursively check left and right trees
             if "left_tree" in split and "right_tree" in split:
-                return check_split(split["left_tree"]) or check_split(split["right_tree"])
+                return check_split(split["left_tree"], masked_features) or check_split(split["right_tree"], masked_features)
             return False
 
         # If the tree doesn't rely on any of the masked features, keep it
-        if not check_split(tree_structure):
+        if not check_split(tree_structure, masked_features):
             retained_trees.append(tree)
 
     # Rebuild the model with only the retained trees
