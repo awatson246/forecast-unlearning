@@ -26,17 +26,25 @@ def prune_lightgbm_trees(model, masked_features, feature_names, trainX, trainY, 
     for tree in tree_info:
         tree_structure = tree["tree_structure"]
 
-        def check_split(split, masked_features):
-            """Recursively checks if a tree split is based on a masked feature."""
-            if "split_feature" in split:
-                return split["split_feature"] in masked_features
+        def prune_tree(split, masked_features):
+            """
+            Prunes a tree by removing splits based on masked features and replacing
+            them with the average value of their child nodes.
+            """
+            if "split_feature" in split and split["split_feature"] in masked_features:
+                # Replace the current split with the average of its children's values
+                return {"value": (split["left_tree"]["value"] + split["right_tree"]["value"]) / 2}
             if "left_tree" in split and "right_tree" in split:
-                return check_split(split["left_tree"], masked_features) or check_split(split["right_tree"], masked_features)
-            return False
+                # Recursively prune the left and right subtrees
+                split["left_tree"] = prune_tree(split["left_tree"], masked_features)
+                split["right_tree"] = prune_tree(split["right_tree"], masked_features)
+            return split
 
-        # If the tree doesn't rely on any of the masked features, keep it
-        if not check_split(tree_structure, masked_features):
-            retained_trees.append(tree)
+        # Prune the tree if it relies on any masked features
+        pruned_tree_structure = prune_tree(tree_structure, masked_features)
+
+        # Add the pruned tree to the retained trees
+        retained_trees.append(pruned_tree_structure)
 
     # Rebuild the model with only the retained trees
     model_str = model.booster_.model_to_string()  # Get the model string representation
@@ -67,8 +75,8 @@ def prune_lightgbm_trees(model, masked_features, feature_names, trainX, trainY, 
         grouped_importances[original_feature_name] += importance
 
     # Normalize by the number of time steps (adjust as needed)
-    look_back = 10  # Adjust this if the look-back period changes
-    grouped_importances = {k: v / look_back for k, v in grouped_importances.items()}
+    #look_back = 10  # Adjust this if the look-back period changes
+    #grouped_importances = {k: v / look_back for k, v in grouped_importances.items()}
 
     # Sort by importance (descending order)
     sorted_importances = sorted(grouped_importances.items(), key=lambda x: x[1], reverse=True)
