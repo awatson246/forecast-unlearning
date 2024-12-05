@@ -18,14 +18,23 @@ def train_lightgbm(trainX, trainY, testX, testY, feature_names, look_back=10):
     model = lgb.LGBMRegressor(verbose=-1) 
 
     # Define hyperparameters for tuning
+    # param_grid = {
+    #     'num_leaves': [31, 50],
+    #     'learning_rate': [0.01, 0.05],
+    #     'n_estimators': [100, 200],
+    #     'max_depth': [-1, 10],
+    #     'min_child_samples': [10, 20],
+    #     'subsample': [0.6, 0.8],
+    #     'colsample_bytree': [0.6, 0.8]
+    # }
     param_grid = {
-        'num_leaves': [31, 50],
-        'learning_rate': [0.01, 0.05],
-        'n_estimators': [100, 200],
-        'max_depth': [-1, 10],
-        'min_child_samples': [10, 20],
-        'subsample': [0.6, 0.8],
-        'colsample_bytree': [0.6, 0.8]
+        'num_leaves': [31],
+        'learning_rate': [0.05],
+        'n_estimators': [100],
+        'max_depth': [-1],
+        'min_child_samples': [10],
+        'subsample': [0.6],
+        'colsample_bytree': [0.6]
     }
 
     # Early stopping and logging callbacks
@@ -42,7 +51,7 @@ def train_lightgbm(trainX, trainY, testX, testY, feature_names, look_back=10):
         cv=3,
         scoring='neg_root_mean_squared_error',
         n_jobs=-1,
-        verbose=1
+        verbose=0
     )
     
     grid_search.fit(trainX_flat, trainY, **fit_params)
@@ -68,12 +77,9 @@ def train_lightgbm(trainX, trainY, testX, testY, feature_names, look_back=10):
         grouped_importances[original_feature_name] += importance
 
     # Normalize by the number of time steps
-    #grouped_importances = {k: v / look_back for k, v in grouped_importances.items()}
+    grouped_importances = {k: v / look_back for k, v in grouped_importances.items()}
 
     # Sort and print feature importances
     sorted_importances = sorted(grouped_importances.items(), key=lambda x: x[1], reverse=True)
-    print("Feature Importances:")
-    for feature, importance in sorted_importances:
-        print(f"{feature}: {importance:.4f}")
 
     return rmse, best_model, sorted_importances

@@ -5,9 +5,8 @@ from src.data_preprocessing import DataPreprocessor
 from src.models.lightgbm_model import train_lightgbm
 from src.models.xgboost_model import train_xgboost
 from src.models.catboost_model import train_catboost
-from src.utils.evaluation import compute_feature_importance
 from src.utils.loading_animation import loading_animation
-from src.models.unlearning import feature_masking, fine_tuning, full_retraining, pruning
+from src.models.unlearning import full_retraining, pruning
 import threading
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -15,11 +14,11 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 def main():
     # Prepare outputs for metrics
     metrics_summary = {
-        "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained", "Pruned"],
+        "Stage": ["Original", "Fully Retrained", "Basic Pruning", "Pruning Repace w/ Avg", "Pruning w/ Weight Adjustment"],
         "RMSE": [None, None, None, None, None],
     }
     feature_importance_summary = {
-        "Stage": ["Original", "Feature Masking", "Fine-Tuned", "Fully Retrained", "Pruned"], 
+        "Stage": ["Original", "Fully Retrained", "Basic Pruning", "Pruning Repace w/ Avg", "Pruning w/ Weight Adjustment"], 
         "Feature Importance": [None, None, None, None, None]
     }
 
@@ -54,7 +53,7 @@ def main():
     location_columns = settings.get("location_columns", [])
 
     # Convert column names to indices
-    feature_indices = [df.columns.get_loc(col) for col in location_columns]
+    masked_indices = [df.columns.get_loc(col) for col in location_columns]
 
     if model_choice == '1':
         print("Training LightGBM model...")
@@ -92,45 +91,33 @@ def main():
     metrics_summary["RMSE"][0] = rmse    
     feature_importance_summary["Feature Importance"][0] = sorted_importances
 
-    # Apply masking to all location columns (simultaneously)
-    print(f"\nMasking columns: {location_columns}...")
-    feature_masking_rmse, feature_masking_model = feature_masking.feature_masking(
-        model, testX, feature_indices, model_type, testY
-    )
-    metrics_summary["RMSE"][1] = feature_masking_rmse
-
-    # Compute feature importance after masking all columns
-    masked_feature_importance = compute_feature_importance(feature_masking_model, testX, feature_names, model_type)
-    feature_importance_summary["Feature Importance"][1] = masked_feature_importance
-
-    # Apply Fine-Tuning
-    print("Fine Tuning...")
-    fine_tuned_rmse, fine_tuning_model = fine_tuning.fine_tuning(model, trainX, trainY, testX, testY, feature_indices, model_type)
-    metrics_summary["RMSE"][2] = fine_tuned_rmse
-
-    # Compute feature importance for fine-tuned model
-    fine_tuned_feature_importance = compute_feature_importance(fine_tuning_model, testX, feature_names, model_type)
-    feature_importance_summary["Feature Importance"][2] = fine_tuned_feature_importance
-    
     # Full Retraining
     print("Retraining the model...")
-    retrained_rmse, retrained_model, retrained_sorted_importances = full_retraining.full_retraining(model, trainX, trainY, testX, testY, feature_indices, model_type, feature_names)
-    metrics_summary["RMSE"][3] = retrained_rmse
-    feature_importance_summary["Feature Importance"][3] = retrained_sorted_importances
+    retrained_rmse, retrained_model, retrained_sorted_importances = full_retraining.full_retraining(model, trainX, trainY, testX, testY, masked_indices, model_type, feature_names)
+    metrics_summary["RMSE"][1] = retrained_rmse
+    feature_importance_summary["Feature Importance"][1] = retrained_sorted_importances
 
     # Pruning
     print("Trimming some trees (don't worry, they'll grow back)...")
-    if model_type == "lightgbm":
-        pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_lightgbm_trees(model, location_columns, feature_names, trainX, trainY, testX, testY)
-    elif model_type == "xgboost":
-        pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_xgboost_trees(model, location_columns, feature_names, trainX, trainY, testX, testY)
-    elif model_type == "catboost":
-        print("Pruning not avaliable for catboost ^^")
-        pruned_model = None
-        pruned_rmse = None
-        pruned_sorted_importance = None
-    metrics_summary["RMSE"][4] = pruned_rmse
-    feature_importance_summary["Feature Importance"][4] = pruned_sorted_importance
+    pruning_types = ["basic", "average", "weighted"]
+
+    summary_iter = 2
+
+    for pruning_type in pruning_types: 
+        if model_type == "lightgbm":
+            print(f"Applying pruning strategy: {pruning_type}")
+            pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_lightgbm_trees(model, masked_indices, feature_names, testX, testY, pruning_type)
+        elif model_type == "xgboost":
+            # pruned_model, pruned_rmse, pruned_sorted_importance = pruning.prune_xgboost_trees(model, location_columns, feature_names, trainX, trainY, testX, testY)
+            pruned_rmse = None
+            pruned_sorted_importance = None
+        elif model_type == "catboost":
+            print("Pruning not avaliable for catboost ^^")
+            pruned_rmse = None
+            pruned_sorted_importance = None
+        metrics_summary["RMSE"][summary_iter] = pruned_rmse
+        feature_importance_summary["Feature Importance"][summary_iter] = pruned_sorted_importance
+        summary_iter += 1
 
     # Print metrics summary
     print(f"\nMasked columns: {location_columns}")

@@ -27,6 +27,9 @@ def compute_feature_importance(model, X, feature_names, model_type, look_back=10
     else:
         raise ValueError(f"Unsupported model type: {model_type}")
     
+    # Debug: Print raw importance values
+    print("Raw importance values:", importance_values)
+    
     # Initialize grouped feature importances
     grouped_importances = {name: 0 for name in feature_names}
     
@@ -35,11 +38,11 @@ def compute_feature_importance(model, X, feature_names, model_type, look_back=10
         original_feature_idx = i % len(feature_names)
         original_feature_name = feature_names[original_feature_idx]
         grouped_importances[original_feature_name] += importance
-
+    
     # Normalize grouped importances by the number of time steps (look_back)
-    #grouped_importances = {k: v / look_back for k, v in grouped_importances.items()}
-
+    grouped_importances = {k: v / look_back for k, v in grouped_importances.items()}
+    
     # Sort features by importance scores in descending order
     sorted_importances = sorted(grouped_importances.items(), key=lambda x: x[1], reverse=True)
-
+    
     return sorted_importances
