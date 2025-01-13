@@ -209,12 +209,10 @@ def prune_lightgbm_trees(model, masked_indices, feature_names, testX, testY, pru
             "monotone_constraints": original_model_dump.get("monotone_constraints", []),
         }
 
-        # Extract feature_infos
+        # Extract feature_infos and tree info
         feature_infos = original_model_dump.get("feature_infos", {})
-
-        # Extract tree info
         tree_info = original_model_dump["tree_info"]
-        
+
         # Process each tree
         retained_trees = []
         for idx, tree in enumerate(tree_info):
@@ -240,11 +238,19 @@ def prune_lightgbm_trees(model, masked_indices, feature_names, testX, testY, pru
             if missing_keys:
                 print(f"Tree {idx} is missing keys: {missing_keys}")
 
+        # Create dummy feature importances
+        dummy_feature_importances = {
+            feature_name: 0 for feature_name in model_metadata["feature_names"]
+        }
+
         # Construct final JSON structure including non-tree metadata
         final_json_structure = {
             **model_metadata,  # Include all non-tree metadata
             "feature_infos": feature_infos,  # Add feature_infos here
-            "tree_info": retained_trees  # Add pruned trees as "tree_info"
+            "tree_info": retained_trees,  # Add pruned trees as "tree_info"
+            "feature_importances": dummy_feature_importances,  # Add dummy feature importances
+            "pandas_categorical": None  # Add missing pandas_categorical key
+
         }
 
         # Convert final JSON structure to a string (model_str)
@@ -259,8 +265,9 @@ def prune_lightgbm_trees(model, masked_indices, feature_names, testX, testY, pru
         except Exception as e:
             print(f"Error writing JSON: {str(e)}")
 
-        # Return the model_str
+        # Return the model_str and retained_trees
         return model_str, retained_trees
+
 
     def calculate_feature_importance_from_pruned_trees(trees_json):
         """
@@ -352,12 +359,23 @@ def prune_lightgbm_trees(model, masked_indices, feature_names, testX, testY, pru
     # Prune and process the trees
     model_str, retained_trees = prune_and_process_trees(model, pruning_type, adjusted_masked_indices)
 
-    #Re-boosting currently undegoing hardships
+    #Re-boosting currently undergoing hardships
     #pruned_model = lgb.Booster(model_str=model_str)
 
-    feature_importance = calculate_feature_importance_from_pruned_trees(retained_trees)
-    #feature_importance = pruned_model.booster_.feature_importance(importance_type="gain")
+    # Save the pruned model as a JSON string to a file
+    temp_model_file = "temp_pruned_model.json"
+    with open(temp_model_file, "w") as file:
+        file.write(model_str)
 
+    # Reload the model using the saved file
+    try:
+        pruned_model = lgb.Booster(model_file="temp_pruned_model.json")
+    except Exception as e:
+        print(f"Error reloading pruned model: {e}")
+        return None, None, None
+
+    feature_importance = calculate_feature_importance_from_pruned_trees(retained_trees)
+    feature_importance = pruned_model.booster_.feature_importance(importance_type="gain")
 
     # Flatten test data
     if len(testX.shape) > 2:
@@ -365,9 +383,8 @@ def prune_lightgbm_trees(model, masked_indices, feature_names, testX, testY, pru
     else:
         testX_reshaped = testX
 
-
-    # rmse = root_mean_squared_error(testY, predictions)
-
+    #rmse = root_mean_squared_error(testY, predictions)
+    rmse = None
 
     grouped_importances = {name: 0 for name in feature_names}
     for i, importance in enumerate(feature_importance):
@@ -378,5 +395,5 @@ def prune_lightgbm_trees(model, masked_indices, feature_names, testX, testY, pru
     grouped_importances = {k: v / look_back for k, v in grouped_importances.items()}
     sorted_importances = sorted(grouped_importances.items(), key=lambda x: x[1], reverse=True)
 
-    #return pruned_model, rmse, sorted_importances
+    return pruned_model, rmse, sorted_importances
     return None, None, sorted_importances
